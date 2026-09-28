@@ -17,7 +17,7 @@ This guide explains how to deploy **KhataAI (খাতা AI)** to Vercel's free
 2. Create a new repository on [GitHub](https://github.com/new).
 3. Link and push your code:
    ```bash
-   git remote add origin https://github.com/<your-username>/khata-ai.git
+   git remote add origin git@github.com:asikr048/AI-exam-evaluation.git
    git branch -M main
    git push -u origin main
    ```
