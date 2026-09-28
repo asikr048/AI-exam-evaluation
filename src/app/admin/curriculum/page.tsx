@@ -4,12 +4,14 @@ import { useState } from "react";
 import Link from "next/link";
 import { BookOpen, ArrowLeft, CheckCircle2, Sliders, PlusCircle } from "lucide-react";
 import { EXAM_TYPES } from "@/lib/constants";
+import { AdminGuard } from "@/components/admin/AdminGuard";
 
 export default function AdminCurriculumPage() {
   const [curricula, setCurricula] = useState(EXAM_TYPES);
 
   return (
-    <div className="container mx-auto max-w-6xl px-4 sm:px-6 py-8 space-y-8">
+    <AdminGuard>
+      <div className="container mx-auto max-w-6xl px-4 sm:px-6 py-8 space-y-8">
       <div className="flex items-center justify-between pb-4 border-b border-border">
         <div className="flex items-center gap-3">
           <Link
@@ -69,5 +71,6 @@ export default function AdminCurriculumPage() {
         ))}
       </div>
     </div>
+  </AdminGuard>
   );
 }

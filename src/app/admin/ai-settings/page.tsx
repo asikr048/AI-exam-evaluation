@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { AI_MODELS, EXAM_TYPES } from "@/lib/constants";
 import { AIModelDefinition, GlobalAISettings } from "@/lib/types";
+import { AdminGuard } from "@/components/admin/AdminGuard";
 
 export default function AdminAISettingsPage() {
   const [settings, setSettings] = useState<GlobalAISettings | null>(null);
@@ -140,7 +141,8 @@ export default function AdminAISettingsPage() {
   const providerModels = AI_MODELS.filter((m) => m.provider === selectedProvider);
 
   return (
-    <div className="container mx-auto max-w-6xl px-4 sm:px-6 py-8 space-y-8">
+    <AdminGuard>
+      <div className="container mx-auto max-w-6xl px-4 sm:px-6 py-8 space-y-8">
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-border">
         <div>
@@ -369,5 +371,6 @@ export default function AdminAISettingsPage() {
         </div>
       </div>
     </div>
+  </AdminGuard>
   );
 }

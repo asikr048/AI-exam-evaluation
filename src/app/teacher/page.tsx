@@ -14,6 +14,10 @@ import {
   AlertTriangle,
   CheckCircle2,
   BookOpen,
+  Building2,
+  Copy,
+  ExternalLink,
+  Share2,
 } from "lucide-react";
 import { Exam, Submission } from "@/lib/types";
 
@@ -21,6 +25,7 @@ export default function TeacherDashboard() {
   const [exams, setExams] = useState<Exam[]>([]);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
   useEffect(() => {
     Promise.all([
@@ -33,6 +38,14 @@ export default function TeacherDashboard() {
       })
       .finally(() => setLoading(false));
   }, []);
+
+  const handleCopyLink = (code?: string) => {
+    if (!code) return;
+    const url = `${window.location.origin}/exam/${code}`;
+    navigator.clipboard.writeText(url);
+    setCopiedCode(code);
+    setTimeout(() => setCopiedCode(null), 2500);
+  };
 
   return (
     <div className="container mx-auto max-w-7xl px-4 sm:px-6 py-8 space-y-8">
@@ -54,7 +67,14 @@ export default function TeacherDashboard() {
         </div>
 
         {/* Quick Action Buttons */}
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <Link
+            href="/teacher/profile"
+            className="flex items-center gap-1.5 rounded-xl border border-border bg-card px-3.5 py-2.5 text-xs sm:text-sm font-bold text-foreground shadow-sm hover:bg-accent transition-all"
+          >
+            <Building2 className="h-4 w-4 text-emerald-600" />
+            Institution Profile & Link
+          </Link>
           <Link
             href="/teacher/evaluate"
             className="flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs sm:text-sm font-bold text-white shadow-md shadow-emerald-600/20 hover:bg-emerald-700 transition-all"
@@ -64,10 +84,45 @@ export default function TeacherDashboard() {
           </Link>
           <Link
             href="/teacher/exams/new"
-            className="flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-xs sm:text-sm font-bold text-foreground shadow-sm hover:bg-accent transition-all"
+            className="flex items-center gap-2 rounded-xl border border-emerald-600 bg-emerald-50 text-emerald-800 px-4 py-2.5 text-xs sm:text-sm font-bold shadow-sm hover:bg-emerald-100 transition-all"
           >
             <PlusCircle className="h-4 w-4 text-emerald-600" />
             Create Exam
+          </Link>
+        </div>
+      </div>
+
+      {/* Institution Portal Link Quick-Banner */}
+      <div className="rounded-2xl border border-emerald-200 bg-gradient-to-r from-emerald-50/80 via-teal-50/50 to-background p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
+        <div className="flex items-start sm:items-center gap-3.5">
+          <div className="h-10 w-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+            <Building2 className="h-5 w-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm font-bold text-foreground">Your Public Coaching & Student Portal is Active</h2>
+              <span className="px-2 py-0.5 rounded text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-200">
+                LIVE
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Share your custom portal URL with students so they can join, view published exams, take tests, and see their results.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2.5 shrink-0">
+          <Link
+            href="/portal/udvash-academic"
+            className="px-3.5 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 flex items-center gap-1.5 shadow-sm transition-colors"
+          >
+            <ExternalLink className="h-3.5 w-3.5" /> View Portal
+          </Link>
+          <Link
+            href="/teacher/profile"
+            className="px-3.5 py-1.5 rounded-lg border border-border bg-card text-foreground text-xs font-bold hover:bg-accent flex items-center gap-1.5 transition-colors"
+          >
+            Edit Profile Slug
           </Link>
         </div>
       </div>
@@ -118,7 +173,7 @@ export default function TeacherDashboard() {
           <div className="flex items-center justify-between">
             <h2 className="text-base font-extrabold text-foreground flex items-center gap-2">
               <BookOpen className="h-4 w-4 text-emerald-600" />
-              Created Exams & Question Sets
+              Created Exams & Direct Links
             </h2>
             <Link href="/teacher/exams/new" className="text-xs font-bold text-emerald-600 hover:text-emerald-700">
               + New Exam
@@ -136,7 +191,7 @@ export default function TeacherDashboard() {
               exams.map((exam) => (
                 <div
                   key={exam.id}
-                  className="p-5 rounded-2xl border border-border bg-card shadow-sm hover:border-emerald-300 transition-all space-y-3"
+                  className="p-5 rounded-2xl border border-border bg-card shadow-sm hover:border-emerald-300 transition-all space-y-3.5"
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
@@ -150,11 +205,52 @@ export default function TeacherDashboard() {
                     </span>
                   </div>
 
+                  {/* Shareable Student Exam Link Row */}
+                  <div className="p-2.5 rounded-xl bg-muted/60 border border-border flex flex-wrap items-center justify-between gap-2 text-xs">
+                    <div className="flex items-center gap-2 truncate">
+                      <span className="text-muted-foreground font-semibold flex items-center gap-1">
+                        <Share2 className="h-3 w-3 text-emerald-600" /> Exam Link:
+                      </span>
+                      <code className="text-emerald-700 dark:text-emerald-400 font-mono text-[11px] bg-background px-2 py-0.5 rounded border border-border">
+                        /exam/{exam.accessCode || exam.id}
+                      </code>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleCopyLink(exam.accessCode || exam.id)}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1 transition-all ${
+                          copiedCode === (exam.accessCode || exam.id)
+                            ? "bg-emerald-600 text-white"
+                            : "bg-card border border-border hover:bg-accent text-foreground"
+                        }`}
+                      >
+                        {copiedCode === (exam.accessCode || exam.id) ? (
+                          <>
+                            <CheckCircle2 className="h-3.5 w-3.5" /> Copied!
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="h-3.5 w-3.5" /> Copy Link
+                          </>
+                        )}
+                      </button>
+
+                      <Link
+                        href={`/exam/${exam.accessCode || exam.id}`}
+                        target="_blank"
+                        className="px-2.5 py-1 rounded-lg bg-card border border-border hover:bg-accent text-xs font-semibold text-muted-foreground hover:text-foreground flex items-center gap-1"
+                      >
+                        <ExternalLink className="h-3 w-3" /> Open Arena
+                      </Link>
+                    </div>
+                  </div>
+
                   <div className="flex flex-wrap items-center justify-between text-xs text-muted-foreground pt-2 border-t border-border">
                     <div className="flex items-center gap-4">
                       <span>Total Marks: <strong>{exam.totalMarks}</strong></span>
                       <span>Questions: <strong>{exam.questions.length}</strong></span>
-                      <span>Access Code: <code className="bg-muted px-1.5 py-0.5 rounded">{exam.accessCode}</code></span>
+                      <span>Code: <code className="bg-muted px-1.5 py-0.5 rounded font-mono">{exam.accessCode}</code></span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Link

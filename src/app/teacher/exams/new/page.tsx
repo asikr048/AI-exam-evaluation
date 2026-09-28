@@ -342,11 +342,25 @@ export default function NewExamPage() {
             <input
               type="text"
               value={accessCode}
-              onChange={(e) => setAccessCode(e.target.value)}
+              onChange={(e) => setAccessCode(e.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, ""))}
               placeholder="e.g. BATCH2026"
-              className="w-full px-3.5 py-2 rounded-xl border border-border bg-background text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none font-mono"
+              className="w-full px-3.5 py-2 rounded-xl border border-border bg-background text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none font-mono font-bold text-emerald-700"
             />
           </div>
+        </div>
+
+        {/* Live Link Preview Callout */}
+        <div className="p-3.5 rounded-xl bg-emerald-50/80 border border-emerald-200 text-xs flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-emerald-600 shrink-0" />
+            <span className="text-muted-foreground font-medium">Direct Student Exam Link:</span>
+            <code className="font-mono font-bold text-emerald-800 bg-white px-2 py-0.5 rounded border border-emerald-200">
+              /exam/{accessCode || "CODE"}
+            </code>
+          </div>
+          <span className="text-[11px] text-emerald-700 font-semibold">
+            ✓ Students can sign up, write answers, or snap photos of answer sheets
+          </span>
         </div>
       </div>
 

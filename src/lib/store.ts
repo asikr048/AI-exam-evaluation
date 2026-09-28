@@ -4,10 +4,74 @@ import {
   EvaluationResult,
   Exam,
   GlobalAISettings,
+  InstitutionProfile,
   Question,
   Submission,
   User,
 } from "./types";
+
+export const SEED_INSTITUTIONS: InstitutionProfile[] = [
+  {
+    id: "inst_udvash",
+    userId: "usr_teacher_01",
+    name: "Udvash Academic & Admission Care",
+    nameBn: "উদ্ভাস একাডেমিক অ্যান্ড এডমিশন কেয়ার",
+    slug: "udvash-academic",
+    type: "COACHING",
+    description: "Bangladesh's premier engineering and medical admission coaching care. Weekly model tests and AI-evaluated CQ answer sheets.",
+    contactEmail: "info@udvash.com",
+    contactPhone: "+880 9666 775566",
+    address: "Farmgate Branch, Dhaka",
+    subscriptionPlan: "COACHING_ULTRA",
+    scriptsQuota: 2500,
+    scriptsUsed: 184,
+  },
+  {
+    id: "inst_notredame",
+    userId: "usr_teacher_01",
+    name: "Notre Dame College, Dhaka",
+    nameBn: "নটর ডেম কলেজ, ঢাকা",
+    slug: "notredame-college",
+    type: "COLLEGE",
+    description: "Department of Physics & Higher Mathematics semester and pre-test examination portal.",
+    contactEmail: "exam@notredamecollege-dhaka.com",
+    contactPhone: "+880 2 7192325",
+    address: "Motijheel, Dhaka",
+    subscriptionPlan: "VARSITY_ENTERPRISE",
+    scriptsQuota: 10000,
+    scriptsUsed: 1420,
+  },
+  {
+    id: "inst_saifurs",
+    userId: "usr_teacher_01",
+    name: "Saifur's Education & IELTS Care",
+    nameBn: "সাইফুর'স এডুকেশন অ্যান্ড আইইএলটিএস কেয়ার",
+    slug: "saifurs-ielts",
+    type: "COACHING",
+    description: "International test preparation center. IELTS Writing Task 1 & Task 2 live mock testing with 4-criterion band evaluations.",
+    contactEmail: "ielts@saifurs.com",
+    contactPhone: "+880 1713 432011",
+    address: "Panthapath, Dhaka",
+    subscriptionPlan: "COACHING_ULTRA",
+    scriptsQuota: 2500,
+    scriptsUsed: 312,
+  },
+  {
+    id: "inst_rafiq_batch",
+    userId: "usr_teacher_01",
+    name: "Prof. Rafiq's Private Physics Batch",
+    nameBn: "প্রফেসর রফিকের প্রাইভেট ফিজিক্স ব্যাচ",
+    slug: "prof-rafiq",
+    type: "INDIVIDUAL",
+    description: "HSC 2026 Batch Physics special CQ & MCQ weekly evaluation program.",
+    contactEmail: "rafiq.physics@gmail.com",
+    contactPhone: "+880 1711 000001",
+    address: "Dhanmondi, Dhaka",
+    subscriptionPlan: "TEACHER_PRO",
+    scriptsQuota: 250,
+    scriptsUsed: 42,
+  },
+];
 
 // In-memory data store with singleton pattern for client & serverless persistence
 class DataStore {
@@ -16,6 +80,7 @@ class DataStore {
   private currentUser: User = DEMO_USERS[1]; // default to Tahmid Hasan (Student) or Teacher
   private exams: Exam[] = [...SEED_EXAMS];
   private submissions: Submission[] = [...SEED_SUBMISSIONS];
+  private institutions: InstitutionProfile[] = [...SEED_INSTITUTIONS];
   private aiSettings: GlobalAISettings = { ...DEFAULT_AI_SETTINGS };
 
   private constructor() {}
@@ -45,6 +110,56 @@ class DataStore {
     return this.users;
   }
 
+  // Institutions & Business Profiles
+  public getInstitutions(): InstitutionProfile[] {
+    return this.institutions;
+  }
+
+  public getInstitutionBySlug(slug: string): InstitutionProfile | undefined {
+    return this.institutions.find(
+      (i) => i.slug.toLowerCase() === slug.toLowerCase()
+    );
+  }
+
+  public getInstitutionByUserId(userId: string): InstitutionProfile | undefined {
+    return this.institutions.find((i) => i.userId === userId) || this.institutions[0];
+  }
+
+  public createOrUpdateInstitution(
+    profileData: Partial<InstitutionProfile> & { name: string; slug: string }
+  ): InstitutionProfile {
+    const existingIndex = this.institutions.findIndex(
+      (i) => i.slug.toLowerCase() === profileData.slug.toLowerCase()
+    );
+
+    if (existingIndex >= 0) {
+      this.institutions[existingIndex] = {
+        ...this.institutions[existingIndex],
+        ...profileData,
+      };
+      return this.institutions[existingIndex];
+    }
+
+    const newInst: InstitutionProfile = {
+      id: `inst_${Date.now()}`,
+      userId: this.currentUser.id,
+      name: profileData.name,
+      nameBn: profileData.nameBn,
+      slug: profileData.slug,
+      type: profileData.type || "COACHING",
+      description: profileData.description || "",
+      contactEmail: profileData.contactEmail || this.currentUser.email,
+      contactPhone: profileData.contactPhone || "+880 1700 000000",
+      address: profileData.address || "Bangladesh",
+      subscriptionPlan: profileData.subscriptionPlan || "FREE",
+      scriptsQuota: profileData.scriptsQuota || 50,
+      scriptsUsed: 0,
+    };
+
+    this.institutions.unshift(newInst);
+    return newInst;
+  }
+
   // Exams
   public getExams(): Exam[] {
     return this.exams;
@@ -52,6 +167,14 @@ class DataStore {
 
   public getExamById(id: string): Exam | undefined {
     return this.exams.find((e) => e.id === id);
+  }
+
+  public getExamByAccessCode(code: string): Exam | undefined {
+    return this.exams.find(
+      (e) =>
+        e.accessCode?.toLowerCase() === code.toLowerCase() ||
+        e.id.toLowerCase() === code.toLowerCase()
+    );
   }
 
   public createExam(examData: Omit<Exam, "id" | "createdAt" | "updatedAt">): Exam {
@@ -161,14 +284,17 @@ class DataStore {
     return this.aiSettings;
   }
 
-  public updateProviderKey(provider: string, apiKey: string, selectedModelId?: string): void {
-    if (this.aiSettings.providers[provider]) {
-      this.aiSettings.providers[provider].apiKey = apiKey;
-      if (selectedModelId) {
-        this.aiSettings.providers[provider].selectedModelId = selectedModelId;
-      }
-      this.aiSettings.providers[provider].isActive = true;
-    }
+  // Admin Authentication
+  public validateAdmin(id: string, pass: string): boolean {
+    const validId = process.env.ADMIN_ID || "admin";
+    const validEmail = "admin@khata.ai";
+    const validPass = process.env.ADMIN_PASSWORD || "admin123";
+
+    return (
+      (id.trim().toLowerCase() === validId.toLowerCase() ||
+        id.trim().toLowerCase() === validEmail.toLowerCase()) &&
+      pass === validPass
+    );
   }
 }
 

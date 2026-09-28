@@ -15,6 +15,11 @@ export const metadata: Metadata = {
     "Bangladesh EdTech",
     "খাতা AI",
   ],
+  icons: {
+    icon: "/icon.svg",
+    shortcut: "/icon.svg",
+    apple: "/icon.svg",
+  },
 };
 
 export default function RootLayout({

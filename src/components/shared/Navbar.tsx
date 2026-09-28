@@ -13,6 +13,7 @@ import {
   Layers,
   FileCheck2,
   Settings,
+  Building2,
 } from "lucide-react";
 
 export function Navbar() {
@@ -113,7 +114,25 @@ export function Navbar() {
               Student Arena
             </Link>
             <Link
-              href="/admin/ai-settings"
+              href="/portal/udvash-academic"
+              className={`px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 ${
+                pathname.startsWith("/portal")
+                  ? "bg-accent text-emerald-900 font-semibold"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Building2 className="h-4 w-4 text-emerald-600" />
+              Coaching Portals
+            </Link>
+            <Link
+              href="/#pricing"
+              className={`px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 text-emerald-800 bg-emerald-50 hover:bg-emerald-100 font-bold border border-emerald-200/80`}
+            >
+              <Sparkles className="h-3.5 w-3.5 text-emerald-600" />
+              Buy Service
+            </Link>
+            <Link
+              href="/admin/login"
               className={`px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 ${
                 pathname.startsWith("/admin")
                   ? "bg-accent text-emerald-900 font-semibold"
@@ -121,22 +140,19 @@ export function Navbar() {
               }`}
             >
               <Cpu className="h-4 w-4 text-emerald-600" />
-              AI Gateway
+              Admin Gateway
             </Link>
           </nav>
         </div>
 
-        {/* Right Section: Active AI Model badge & Persona Switcher */}
+        {/* Right Section: Buy Service CTA & Persona Switcher */}
         <div className="flex items-center gap-3">
-          {/* Active Model Indicator */}
           <Link
-            href="/admin/ai-settings"
-            className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200/80 text-emerald-800 text-xs font-medium hover:bg-emerald-100 transition-colors"
-            title="Click to change AI Model in Admin Gateway"
+            href="/#pricing"
+            className="hidden sm:inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-sm hover:from-emerald-700 hover:to-teal-700 transition-all"
           >
-            <Sparkles className="h-3.5 w-3.5 text-emerald-600 animate-pulse" />
-            <span>AI:</span>
-            <span className="font-semibold">{activeModel}</span>
+            <Sparkles className="h-3.5 w-3.5" />
+            Buy Service (৳ BDT)
           </Link>
 
           {/* Persona Switcher Dropdown */}

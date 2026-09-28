@@ -1,11 +1,32 @@
 export type UserRole = "STUDENT" | "TEACHER" | "ADMIN";
 
+export type InstitutionType = "COACHING" | "SCHOOL" | "COLLEGE" | "VARSITY" | "INDIVIDUAL";
+
+export interface InstitutionProfile {
+  id: string;
+  userId: string;
+  name: string;
+  nameBn?: string;
+  slug: string;
+  type: InstitutionType;
+  description: string;
+  logoUrl?: string;
+  bannerUrl?: string;
+  contactEmail: string;
+  contactPhone: string;
+  address?: string;
+  subscriptionPlan: "FREE" | "TEACHER_PRO" | "COACHING_ULTRA" | "VARSITY_ENTERPRISE";
+  scriptsQuota: number;
+  scriptsUsed: number;
+}
+
 export interface User {
   id: string;
   name: string;
   email: string;
   role: UserRole;
   institution?: string;
+  institutionSlug?: string;
   avatarUrl?: string;
   phone?: string;
 }
