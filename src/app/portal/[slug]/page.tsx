@@ -93,6 +93,12 @@ export default function InstitutionPortalPage({
       {/* Top Banner */}
       <div className="bg-gradient-to-r from-emerald-900 via-teal-900 to-slate-900 text-white py-12 px-4 sm:px-6">
         <div className="container mx-auto max-w-5xl space-y-4">
+          <Link
+            href="/portal"
+            className="inline-flex items-center gap-1.5 text-xs text-emerald-300 hover:text-white transition-colors"
+          >
+            ← All Institution Portals
+          </Link>
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <div className="h-14 w-14 rounded-2xl bg-white/10 backdrop-blur border border-white/20 flex items-center justify-center shadow-lg">

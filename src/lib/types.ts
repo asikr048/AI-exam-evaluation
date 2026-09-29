@@ -24,6 +24,7 @@ export interface User {
   id: string;
   name: string;
   email: string;
+  password?: string;
   role: UserRole;
   institution?: string;
   institutionSlug?: string;
@@ -115,6 +116,7 @@ export interface Exam {
   createdAt: string;
   updatedAt: string;
   accessCode?: string;
+  isPublic?: boolean;
 }
 
 export interface SubmissionAnswer {

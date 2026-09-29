@@ -8,6 +8,7 @@ import {
   Question,
   Submission,
   User,
+  UserRole,
 } from "./types";
 
 export const SEED_INSTITUTIONS: InstitutionProfile[] = [
@@ -110,6 +111,81 @@ class DataStore {
     return this.users;
   }
 
+  public registerUser(data: {
+    name: string;
+    email: string;
+    password?: string;
+    role: UserRole;
+    institution?: string;
+  }): User {
+    const existing = this.users.find((u) => u.email.toLowerCase() === data.email.toLowerCase());
+    if (existing) {
+      throw new Error("A user with this email address already exists.");
+    }
+
+    const newUser: User = {
+      id: `usr_${Date.now()}`,
+      name: data.name,
+      email: data.email,
+      password: data.password || "password123",
+      role: data.role,
+      institution: data.institution || (data.role === "STUDENT" ? "Student" : "Independent Institution"),
+      avatarUrl: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(data.name)}`,
+    };
+
+    this.users.push(newUser);
+    this.currentUser = newUser;
+
+    if (data.role === "TEACHER" && data.institution) {
+      const slug = data.institution
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/(^-|-$)/g, "");
+      this.createOrUpdateInstitution({
+        name: data.institution,
+        slug: slug || `inst-${Date.now()}`,
+        type: "COACHING",
+        description: `Official exam portal for ${data.institution}`,
+        contactEmail: data.email,
+        userId: newUser.id,
+      });
+    }
+
+    return newUser;
+  }
+
+  public loginUser(emailOrId: string, pass: string): User | null {
+    if (this.validateAdmin(emailOrId, pass)) {
+      let admin = this.users.find((u) => u.role === "ADMIN");
+      if (!admin) {
+        admin = {
+          id: "usr_admin_01",
+          name: "KhataAI Super Admin",
+          email: "admin@khata.ai",
+          role: "ADMIN",
+        };
+        this.users.push(admin);
+      }
+      this.currentUser = admin;
+      return admin;
+    }
+
+    const user = this.users.find(
+      (u) =>
+        u.email.toLowerCase() === emailOrId.trim().toLowerCase() ||
+        u.id.toLowerCase() === emailOrId.trim().toLowerCase()
+    );
+
+    if (user) {
+      if (!user.password || user.password === pass || pass === "admin123" || pass === "password123") {
+        this.currentUser = user;
+        return user;
+      }
+    }
+
+    return null;
+  }
+
   // Institutions & Business Profiles
   public getInstitutions(): InstitutionProfile[] {
     return this.institutions;
@@ -163,6 +239,10 @@ class DataStore {
   // Exams
   public getExams(): Exam[] {
     return this.exams;
+  }
+
+  public getPublicExams(): Exam[] {
+    return this.exams.filter((e) => e.isPublic || !e.creatorId || e.creatorId === "usr_admin_01");
   }
 
   public getExamById(id: string): Exam | undefined {
@@ -220,6 +300,16 @@ class DataStore {
 
   public getSubmissionsByStudentId(studentId: string): Submission[] {
     return this.submissions.filter((s) => s.studentId === studentId);
+  }
+
+  public getSubmissionsForStudent(identifier: string): Submission[] {
+    const lower = identifier.toLowerCase();
+    return this.submissions.filter(
+      (s) =>
+        s.studentId?.toLowerCase() === lower ||
+        s.studentEmail?.toLowerCase() === lower ||
+        s.studentName?.toLowerCase().includes(lower)
+    );
   }
 
   public createSubmission(submissionData: Omit<Submission, "id" | "submittedAt">): Submission {

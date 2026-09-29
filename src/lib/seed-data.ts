@@ -17,6 +17,7 @@ export const SEED_EXAMS: Exam[] = [
     createdAt: "2026-09-20T10:00:00Z",
     updatedAt: "2026-09-25T12:00:00Z",
     accessCode: "HSC2026",
+    isPublic: true,
     questions: [
       {
         id: "q_hsc_cq_01",
@@ -171,6 +172,7 @@ export const SEED_EXAMS: Exam[] = [
     createdAt: "2026-09-22T14:00:00Z",
     updatedAt: "2026-09-26T09:00:00Z",
     accessCode: "IELTS9",
+    isPublic: true,
     questions: [
       {
         id: "q_ielts_01",
@@ -210,6 +212,225 @@ export const SEED_EXAMS: Exam[] = [
         ],
       },
     ],
+  },
+  {
+    id: "exam_ssc_math_01",
+    title: "SSC Higher Mathematics: Coordinate Geometry & Trigonometry",
+    subject: "Higher Mathematics (উচ্চতর গণিত)",
+    curriculumCode: "SSC",
+    creatorId: "usr_admin_01",
+    creatorName: "KhataAI Academic Board",
+    totalMarks: 50,
+    durationMinutes: 90,
+    isOnline: true,
+    isPublished: true,
+    negativeMarkingRate: 0.0,
+    passMarkPercentage: 33,
+    createdAt: "2026-09-24T10:00:00Z",
+    updatedAt: "2026-09-27T12:00:00Z",
+    accessCode: "SSC2026",
+    isPublic: true,
+    questions: [
+      {
+        id: "q_ssc_cq_01",
+        examId: "exam_ssc_math_01",
+        type: "CQ",
+        orderIndex: 1,
+        marks: 10,
+        questionText: "উদ্দীপকটি পড়ে নিচের প্রশ্নগুলোর উত্তর দাও:",
+        stimulusText: "একটি ত্রিভুজের তিনটি শীর্ষবিন্দু যথাক্রমে A(2, 5), B(-1, 1) এবং C(5, -2)। D বিন্দুটি BC এর মধ্যবিন্দু।",
+        cqParts: [
+          {
+            part: "ka",
+            bengaliLabel: "ক",
+            cognitiveLevel: "জ্ঞানমূলক",
+            marks: 1,
+            questionText: "A ও B বিন্দুর দূরত্ব নির্ণয় করো।",
+            modelAnswer: "AB = √((2 - (-1))² + (5 - 1)²) = √(3² + 4²) = 5 একক।",
+            rubrics: [
+              { id: "r_ssc_ka_1", criterion: "দূরত্বের সূত্র ও সঠিক মান", maxPoints: 1, description: "দূরত্ব ৫ একক সঠিকভাবে বের করলে ১ নম্বর।" }
+            ]
+          },
+          {
+            part: "kha",
+            bengaliLabel: "খ",
+            cognitiveLevel: "অনুধাবনমূলক",
+            marks: 2,
+            questionText: "D বিন্দুর স্থানাঙ্ক ও AD মধ্যমার দৈর্ঘ্য নির্ণয় করো।",
+            modelAnswer: "D = ((-1+5)/2, (1-2)/2) = (2, -0.5)। AD = √((2-2)² + (5 - (-0.5))²) = 5.5 একক।",
+            rubrics: [
+              { id: "r_ssc_kha_1", criterion: "মধ্যবিন্দু স্থানাঙ্ক", maxPoints: 1, description: "D(2, -0.5) সঠিকভাবে বের করলে ১ নম্বর।" },
+              { id: "r_ssc_kha_2", criterion: "মধ্যমার দৈর্ঘ্য", maxPoints: 1, description: "AD = 5.5 একক গণনা করলে ১ নম্বর।" }
+            ]
+          },
+          {
+            part: "ga",
+            bengaliLabel: "গ",
+            cognitiveLevel: "প্রয়োগমূলক",
+            marks: 3,
+            questionText: "ABC ত্রিভুজের ক্ষেত্রফল নির্ণয় করো।",
+            modelAnswer: "ক্ষেত্রফল = 1/2 * |2(1 - (-2)) + (-1)(-2 - 5) + 5(5 - 1)| = 1/2 * |6 + 7 + 20| = 33/2 = 16.5 বর্গ একক।",
+            rubrics: [
+              { id: "r_ssc_ga_1", criterion: "ক্ষেত্রফলের সূত্র", maxPoints: 1, description: "সঠিক সূত্রের প্রয়োগ।" },
+              { id: "r_ssc_ga_2", criterion: "মান প্রতিস্থাপন ও হিসাব", maxPoints: 2, description: "১৬.৫ বর্গ একক ফলাফল।" }
+            ]
+          },
+          {
+            part: "gha",
+            bengaliLabel: "ঘ",
+            cognitiveLevel: "উচ্চতর দক্ষতামূলক",
+            marks: 4,
+            questionText: "A বিন্দুগামী এবং BC বাহুর সমান্তরাল সরলরেখার সমীকরণ নির্ণয় করো।",
+            modelAnswer: "BC এর ঢাল m = (-2 - 1)/(5 - (-1)) = -3/6 = -1/2। সমান্তরাল রেখার ঢাল m = -1/2। A(2, 5) গামী সমীকরণ: y - 5 = -1/2 (x - 2) => x + 2y - 12 = 0।",
+            rubrics: [
+              { id: "r_ssc_gha_1", criterion: "ঢাল নির্ণয়", maxPoints: 1, description: "m = -1/2 নির্ণয়।" },
+              { id: "r_ssc_gha_2", criterion: "সমান্তরাল রেখার সমীকরণ গঠন", maxPoints: 3, description: "x + 2y - 12 = 0 প্রতিপাদন।" }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    id: "exam_du_ka_01",
+    title: "Dhaka University 'Ka' Unit Admission Mock Test: Physics & Chemistry",
+    subject: "Physics & Chemistry (DU 'Ka' Unit Admission)",
+    curriculumCode: "DU_A",
+    creatorId: "usr_admin_01",
+    creatorName: "KhataAI Admission Team",
+    totalMarks: 50,
+    durationMinutes: 60,
+    isOnline: true,
+    isPublished: true,
+    negativeMarkingRate: 0.25,
+    passMarkPercentage: 40,
+    createdAt: "2026-09-25T08:00:00Z",
+    updatedAt: "2026-09-27T10:00:00Z",
+    accessCode: "DU-KA-2026",
+    isPublic: true,
+    questions: [
+      {
+        id: "q_du_01",
+        examId: "exam_du_ka_01",
+        type: "MCQ",
+        orderIndex: 1,
+        marks: 1,
+        questionText: "কোনো বস্তুর ভরবেগ ৫০% বৃদ্ধি পেলে তার গতিশক্তি শতকরা কত বৃদ্ধি পাবে?",
+        mcqOptions: [
+          { id: "du_opt_1", text: "125%", isCorrect: true, explanation: "Ek = p²/(2m)। p' = 1.5p => Ek' = 2.25 Ek => বৃদ্ধি = (2.25 - 1)*100% = 125%" },
+          { id: "du_opt_2", text: "50%", isCorrect: false },
+          { id: "du_opt_3", text: "100%", isCorrect: false },
+          { id: "du_opt_4", text: "75%", isCorrect: false }
+        ]
+      },
+      {
+        id: "q_du_02",
+        examId: "exam_du_ka_01",
+        type: "MCQ",
+        orderIndex: 2,
+        marks: 1,
+        questionText: "কোন যৌগটি ক্যানিজারো বিক্রিয়া দেয়?",
+        mcqOptions: [
+          { id: "du_opt_2_1", text: "HCHO (ফর্মালডিহাইড)", isCorrect: true, explanation: "আলফা হাইড্রোজেনবিহীন অ্যালডিহাইড ক্যানিজারো বিক্রিয়া দেয়।" },
+          { id: "du_opt_2_2", text: "CH3CHO", isCorrect: false },
+          { id: "du_opt_2_3", text: "CH3COCH3", isCorrect: false },
+          { id: "du_opt_2_4", text: "CH3CH2CHO", isCorrect: false }
+        ]
+      },
+      {
+        id: "q_du_03",
+        examId: "exam_du_ka_01",
+        type: "DESCRIPTIVE",
+        orderIndex: 3,
+        marks: 10,
+        questionText: "একটি আদর্শ গ্যাসের জন্য সমোষ্ণ ও রুদ্ধতাপীয় পরিবর্তনের মধ্যে পার্থক্য লিখো এবং সমোষ্ণ রেখার চেয়ে রুদ্ধতাপ রেখা কেন γ গুণ খাড়া তা প্রমাণ করো।",
+        modelAnswer: "সমোষ্ণ প্রক্রিয়ায় তাপমাত্রা ধ্রুবক থাকে (PV = C)। ঢাল dP/dV = -P/V।\nরুদ্ধতাপ প্রক্রিয়ায় তাপ আদান-প্রদান হয় না (PV^γ = C)। ঢাল dP/dV = -γ P/V।\nঅতএব রুদ্ধতাপ রেখার ঢাল = γ * (সমোষ্ণ রেখার ঢাল)। ফলে রুদ্ধতাপ রেখা সমোষ্ণ রেখার চেয়ে γ গুণ খাড়া।",
+        rubrics: [
+          { id: "r_du_3_1", criterion: "পার্থক্য উপস্থাপন", maxPoints: 4, description: "সংজ্ঞা ও মূল সমীকরণের সঠিক তুলনা।" },
+          { id: "r_du_3_2", criterion: "গাণিতিক প্রতিপাদন", maxPoints: 6, description: "অন্তরীকরণ করে γ গুণ খাড়া প্রমাণ।" }
+        ]
+      }
+    ]
+  },
+  {
+    id: "exam_buet_math_01",
+    title: "BUET Engineering Written Test: Differential Calculus & Dynamics",
+    subject: "Higher Mathematics (BUET Engineering Written)",
+    curriculumCode: "BUET",
+    creatorId: "usr_admin_01",
+    creatorName: "BUET Alumni Academic Board",
+    totalMarks: 60,
+    durationMinutes: 75,
+    isOnline: true,
+    isPublished: true,
+    negativeMarkingRate: 0.0,
+    passMarkPercentage: 40,
+    createdAt: "2026-09-25T11:00:00Z",
+    updatedAt: "2026-09-28T09:00:00Z",
+    accessCode: "BUET-MATH",
+    isPublic: true,
+    questions: [
+      {
+        id: "q_buet_01",
+        examId: "exam_buet_math_01",
+        type: "DESCRIPTIVE",
+        orderIndex: 1,
+        marks: 20,
+        questionText: "যদি y = (sin⁻¹ x)² হয়, তবে প্রমাণ করো যে: (1 - x²) y₂ - x y₁ - 2 = 0। এরপর লিইবনিজ উপপাদ্যের সাহায্যে n-তম অন্তরজ নির্ণয় করো।",
+        modelAnswer: "y = (sin⁻¹ x)²\n=> y₁ = 2 sin⁻¹ x * 1/√(1 - x²)\n=> (1 - x²) y₁² = 4 (sin⁻¹ x)² = 4y\nউভয়পক্ষকে x এর সাপেক্ষে অন্তরীকরণ করে পাই:\n(1 - x²)*2y₁ y₂ - 2x y₁² = 4 y₁\n=> 2y₁ দিয়ে ভাগ করে: (1 - x²) y₂ - x y₁ - 2 = 0 (প্রমাণিত)।\nলিইবনিজ সূত্র প্রয়োগ করে n-তম অন্তরজ: (1 - x²) y_{n+2} - (2n + 1)x y_{n+1} - n² y_n = 0।",
+        rubrics: [
+          { id: "r_buet_1", criterion: "প্রথম ও দ্বিতীয় অন্তরজের সম্পর্ক", maxPoints: 10, description: "(1 - x²) y₂ - x y₁ - 2 = 0 সমীকরণ প্রতিপাদন।" },
+          { id: "r_buet_2", criterion: "লিইবনিজ উপপাদ্য প্রয়োগ", maxPoints: 10, description: "সঠিক n-তম অন্তরজের পুনরাবৃত্তি সম্পর্ক স্থাপন।" }
+        ]
+      }
+    ]
+  },
+  {
+    id: "exam_bcs_preli_01",
+    title: "47th BCS Preliminary & Written Model Test: Bangladesh & Global Affairs",
+    subject: "General Knowledge & Bangladesh Affairs (BCS)",
+    curriculumCode: "BCS",
+    creatorId: "usr_admin_01",
+    creatorName: "BCS Cadre Mentors Board",
+    totalMarks: 50,
+    durationMinutes: 60,
+    isOnline: true,
+    isPublished: true,
+    negativeMarkingRate: 0.50,
+    passMarkPercentage: 50,
+    createdAt: "2026-09-26T12:00:00Z",
+    updatedAt: "2026-09-28T14:00:00Z",
+    accessCode: "BCS-47",
+    isPublic: true,
+    questions: [
+      {
+        id: "q_bcs_01",
+        examId: "exam_bcs_preli_01",
+        type: "MCQ",
+        orderIndex: 1,
+        marks: 1,
+        questionText: "ঐতিহাসিক ৭ই মার্চের ভাষণকে ইউনেস্কো কোন আন্তর্জাতিক স্মৃতি রেজিস্টারে অন্তর্ভুক্ত করেছে?",
+        mcqOptions: [
+          { id: "bcs_opt_1", text: "মেমোরি অব দ্য ওয়ার্ল্ড ইন্টারন্যাশনাল রেজিস্টার (Memory of the World)", isCorrect: true, explanation: "২০১৭ সালের ৩০ অক্টোবর ইউনেস্কো এটিকে বিশ্ব প্রামাণ্য ঐতিহ্য হিসেবে স্বীকৃতি দেয়।" },
+          { id: "bcs_opt_2", text: "ওয়ার্ল্ড হেরিটেজ লিস্ট", isCorrect: false },
+          { id: "bcs_opt_3", text: "ইনটেনজিবল কালচারাল হেরিটেজ", isCorrect: false },
+          { id: "bcs_opt_4", text: "ডকুমেন্টারি হেরিটেজ অব এশিয়া", isCorrect: false }
+        ]
+      },
+      {
+        id: "q_bcs_02",
+        examId: "exam_bcs_preli_01",
+        type: "DESCRIPTIVE",
+        orderIndex: 2,
+        marks: 15,
+        questionText: "বাংলাদেশের ডেল্টা প্ল্যান ২১০০ (Delta Plan 2100) এর মূল স্তম্ভগুলো সংক্ষেপে আলোচনা করুন এবং জলবায়ু ঝুঁকি মোকাবিলায় এর তাৎপর্য ব্যাখ্যা করুন।",
+        modelAnswer: "বাংলাদেশ ব-দ্বীপ পরিকল্পনা ২১০০ হলো একটি সমন্বিত ও দীর্ঘমেয়াদী কৌশলগত পরিকল্পনা। মূল লক্ষ্য:\n১. চরম দারিদ্র্য দূরীকরণ ও ২০৩০ সালের মধ্যে উচ্চ-মধ্যম আয়ের দেশে রূপান্তর।\n২. বন্যা ও জলবায়ু সম্পর্কিত বিপর্যয় থেকে নিরাপত্তা নিশ্চিতকরণ।\n৩. পানি ব্যবহারে সার্বিক দক্ষতা বৃদ্ধি ও টেকসই ব-দ্বীপ বাস্তুতন্ত্র নিশ্চিতকরণ।\nছয়টি হটস্পট: উপকূলীয় অঞ্চল, বরেন্দ্র ও খরা প্রবণ অঞ্চল, হাওর ও নদী মোহনা, পার্বত্য চট্টগ্রাম, এবং নগর অঞ্চল।",
+        rubrics: [
+          { id: "r_bcs_1", criterion: "পরিকল্পনার পটভূমি ও মূল লক্ষ্য", maxPoints: 6, description: "সুনির্দিষ্ট লক্ষ্য ও রূপকল্প ২১০০ এর ব্যাখ্যা।" },
+          { id: "r_bcs_2", criterion: "হটস্পট ও জলবায়ু তাৎপর্য", maxPoints: 9, description: "উপকূলীয় সুরক্ষা, খরা ও বন্যা নিয়ন্ত্রণের সুনির্দিষ্ট কৌশল বিশ্লেষণ।" }
+        ]
+      }
+    ]
   },
 ];
 

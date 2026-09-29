@@ -1,7 +1,18 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { store } from "@/lib/store";
 
 export async function GET() {
+  const cookieStore = await cookies();
+  const sessionUserId = cookieStore.get("khata_user_session")?.value;
+
+  if (sessionUserId) {
+    const user = store.getAllUsers().find((u) => u.id === sessionUserId);
+    if (user) {
+      store.setCurrentUser(user);
+    }
+  }
+
   const currentUser = store.getCurrentUser();
   const allUsers = store.getAllUsers();
   return NextResponse.json({ success: true, currentUser, allUsers });

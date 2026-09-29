@@ -37,11 +37,11 @@ export function Footer() {
           <div>
             <h5 className="font-bold text-foreground mb-3 uppercase tracking-wider text-[11px]">Platform Portals</h5>
             <ul className="space-y-2">
-              <li><Link href="/teacher" className="hover:text-foreground">Teacher Evaluation Suite</Link></li>
-              <li><Link href="/teacher/evaluate" className="hover:text-foreground">Camera Answer Sheet Scanner</Link></li>
-              <li><Link href="/student" className="hover:text-foreground">Student Transparent Script Viewer</Link></li>
-              <li><Link href="/admin/ai-settings" className="hover:text-foreground">Admin Multi-AI Gateway</Link></li>
-              <li><Link href="/#pricing" className="hover:text-foreground">bKash & Nagad Checkout</Link></li>
+              <li><Link href="/student" className="hover:text-foreground">Student Public Exam Arena</Link></li>
+              <li><Link href="/portal" className="hover:text-foreground">Coaching & Institution Directory</Link></li>
+              <li><Link href="/pricing" className="hover:text-foreground">Buy Service & Pricing Plans</Link></li>
+              <li><Link href="/profile" className="hover:text-foreground">Student Exam History & Profile</Link></li>
+              <li><Link href="/admin/login" className="hover:text-foreground font-semibold text-emerald-600">Admin Control Gateway</Link></li>
             </ul>
           </div>
 
@@ -61,13 +61,15 @@ export function Footer() {
         <div className="pt-6 border-t border-border flex flex-wrap items-center justify-between gap-4">
           <p>© {new Date().getFullYear()} KhataAI Inc. Made for Bangladesh & Global Education.</p>
           <div className="flex items-center gap-4">
-            <Link href="/admin/ai-settings" className="hover:text-foreground font-semibold text-emerald-600">
+            <Link href="/admin/login" className="hover:text-foreground font-semibold text-emerald-600">
               Admin Gateway
             </Link>
             <span>•</span>
-            <Link href="/teacher" className="hover:text-foreground">Teacher Dashboard</Link>
+            <Link href="/portal" className="hover:text-foreground">Institution Portals</Link>
             <span>•</span>
-            <Link href="/student" className="hover:text-foreground">Student Portal</Link>
+            <Link href="/student" className="hover:text-foreground">Student Arena</Link>
+            <span>•</span>
+            <Link href="/pricing" className="hover:text-foreground">Pricing</Link>
           </div>
         </div>
       </div>

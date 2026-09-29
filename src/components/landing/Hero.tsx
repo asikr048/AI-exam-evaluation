@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Sparkles, ArrowRight, Camera, CheckCircle2, ShieldCheck, Zap } from "lucide-react";
+import { Sparkles, ArrowRight, Camera, CheckCircle2, ShieldCheck, Zap, GraduationCap, Building2 } from "lucide-react";
 
 export function Hero() {
   return (
@@ -45,17 +45,18 @@ export function Hero() {
               Try Live Demo Evaluator
             </Link>
             <Link
-              href="/teacher/evaluate"
+              href="/student"
               className="flex items-center gap-2 rounded-xl border border-border bg-card px-6 py-3.5 text-sm font-bold text-foreground shadow-sm hover:bg-accent/60 transition-all"
             >
-              <Camera className="h-4 w-4 text-emerald-600" />
-              Camera Script Scanner
+              <GraduationCap className="h-4 w-4 text-emerald-600" />
+              Explore Public Exams
             </Link>
             <Link
-              href="/student"
+              href="/portal"
               className="flex items-center gap-2 rounded-xl border border-transparent text-sm font-bold text-muted-foreground hover:text-foreground transition-colors"
             >
-              Student Result Viewer <ArrowRight className="h-4 w-4" />
+              <Building2 className="h-4 w-4 text-emerald-600" />
+              Institution Portals <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
 
