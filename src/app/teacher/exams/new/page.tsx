@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -12,18 +12,30 @@ import {
   CheckCircle2,
   Sparkles,
   HelpCircle,
+  Building2,
+  ListPlus,
+  Scale,
+  FileText,
+  Clock,
+  ChevronDown,
 } from "lucide-react";
 import { EXAM_TYPES } from "@/lib/constants";
-import { CQPart, Question } from "@/lib/types";
+import { CQPart, Question, RubricPoint } from "@/lib/types";
 
-export default function NewExamPage() {
+function NewExamForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const instSlug = searchParams.get("institutionSlug") || "";
+
   const [title, setTitle] = useState("");
   const [subject, setSubject] = useState("");
   const [curriculumCode, setCurriculumCode] = useState("HSC");
   const [durationMinutes, setDurationMinutes] = useState(90);
   const [negativeMarkingRate, setNegativeMarkingRate] = useState(0.0);
-  const [accessCode, setAccessCode] = useState("BATCH2026");
+  const [accessCode, setAccessCode] = useState(
+    instSlug ? `${instSlug.toUpperCase().slice(0, 4)}_${Math.floor(100 + Math.random() * 900)}` : "EXAM2026"
+  );
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Questions array
   const [questions, setQuestions] = useState<Question[]>([
@@ -34,7 +46,7 @@ export default function NewExamPage() {
       orderIndex: 1,
       marks: 10,
       questionText: "উদ্দীপকটি পড়ে নিচের প্রশ্নগুলোর উত্তর দাও:",
-      stimulusText: "একটি গতিশীল বস্তু সংক্রান্ত উদ্দীপক...",
+      stimulusText: "একটি গতিশীল গাড়ি ও প্রাস সংক্রান্ত ব্যবহারিক পরীক্ষার তথ্য...",
       cqParts: [
         {
           part: "ka",
@@ -46,9 +58,9 @@ export default function NewExamPage() {
           rubrics: [
             {
               id: "r1",
-              criterion: "সঠিক সংজ্ঞা",
+              criterion: "সঠিক ও পূর্ণাঙ্গ সংজ্ঞা",
               maxPoints: 1,
-              description: "সংজ্ঞা সঠিকভাবে লিখলে ১ নম্বর।",
+              description: "প্রাসের সংজ্ঞায় তীর্যক নিক্ষেপণ ও শূন্যে গতিশীল থাকার শর্ত থাকলে ১ নম্বর।",
             },
           ],
         },
@@ -57,20 +69,20 @@ export default function NewExamPage() {
           bengaliLabel: "খ",
           cognitiveLevel: "অনুধাবনমূলক",
           marks: 2,
-          questionText: "চলন্ত বাসের যাত্রী সামনে ঝুঁকে পড়ে কেন? ব্যাখ্যা করো।",
-          modelAnswer: "গতিজড়তার কারণে...",
+          questionText: "চলন্ত বাসের যাত্রী হঠাৎ ব্রেক কষলে সামনে ঝুঁকে পড়ে কেন? ব্যাখ্যা করো।",
+          modelAnswer: "গতিজড়তার কারণে। বাসের সাথে শরীরের নিম্নাংশ স্থির হলেও ঊর্ধ্বাংশ গতি বজায় রাখতে চায়।",
           rubrics: [
             {
               id: "r2_1",
-              criterion: "জড়তা চিহ্নিতকরণ",
+              criterion: "পয়েন্ট ১: গতিজড়তা চিহ্নিতকরণ",
               maxPoints: 1,
-              description: "গতিজড়তার প্রত্যক্ষ উল্লেখ।",
+              description: "১ম প্যারায় গতিজড়তার প্রত্যক্ষ উল্লেখ করলে ১ নম্বর।",
             },
             {
               id: "r2_2",
-              criterion: "বৈজ্ঞানিক ব্যাখ্যা",
+              criterion: "পয়েন্ট ২: বেগ ও শরীরের অংশের বৈসাদৃশ্য",
               maxPoints: 1,
-              description: "পা ও শরীরের ঊর্ধ্বাংশের বেগের বৈসাদৃশ্য।",
+              description: "২য় প্যারায় শরীরের ঊর্ধ্বাংশ ও নিম্নাংশের আপেক্ষিক গতির বিজ্ঞানসম্মত ব্যাখ্যায় ১ নম্বর।",
             },
           ],
         },
@@ -79,12 +91,27 @@ export default function NewExamPage() {
           bengaliLabel: "গ",
           cognitiveLevel: "প্রয়োগমূলক",
           marks: 3,
-          questionText: "বস্তুটির সর্বোচ্চ উচ্চতায় পৌঁছানোর সময় নির্ণয় করো।",
-          modelAnswer: "t = v₀ sinθ / g...",
+          questionText: "উদ্দীপক অনুসারে বস্তুটির সর্বোচ্চ উচ্চতায় পৌঁছানোর সময় নির্ণয় করো।",
+          modelAnswer: "t = v₀ sinθ / g সমীকরণ প্রয়োগ করে মান বসিয়ে সঠিক এককসহ উত্তর।",
           rubrics: [
-            { id: "r3_1", criterion: "সূত্র প্রতিপাদন", maxPoints: 1, description: "সঠিক সূত্র" },
-            { id: "r3_2", criterion: "মান প্রতিস্থাপন", maxPoints: 1, description: "মান বসানো" },
-            { id: "r3_3", criterion: "এককসহ উত্তর", maxPoints: 1, description: "চূড়ান্ত ফলাফল" },
+            {
+              id: "r3_1",
+              criterion: "পয়েন্ট ১: সঠিক সূত্র নির্ধারণ",
+              maxPoints: 1,
+              description: "উল্লম্ব বেগ ও সময়ের সূত্র (t = v₀ sinθ / g) লিখলে ১ নম্বর।",
+            },
+            {
+              id: "r3_2",
+              criterion: "পয়েন্ট ২: সঠিক মান প্রতিস্থাপন ও গণনা",
+              maxPoints: 1,
+              description: "উদ্দীপক থেকে প্রাপ্ত মান সমীকরণে বসিয়ে গণনা করলে ১ নম্বর।",
+            },
+            {
+              id: "r3_3",
+              criterion: "পয়েন্ট ৩: এককসহ চূড়ান্ত ফলাফল",
+              maxPoints: 1,
+              description: "সেকেণ্ড (s) এককসহ নির্ভুল ফলাফলে ১ নম্বর।",
+            },
           ],
         },
         {
@@ -92,20 +119,136 @@ export default function NewExamPage() {
           bengaliLabel: "ঘ",
           cognitiveLevel: "উচ্চতর দক্ষতামূলক",
           marks: 4,
-          questionText: "গাণিতিক বিশ্লেষণের মাধ্যমে শক্তির সংরক্ষণশীলতা নীতি যাচাই করো।",
-          modelAnswer: "আদি বিন্দু, মধ্যবিন্দু ও সর্বোচ্চ বিন্দুতে মোট শক্তি ধ্রুবক...",
+          questionText: "গাণিতিক বিশ্লেষণের মাধ্যমে শক্তির সংরক্ষণশীলতা নীতি যাচাই করে মতামত দাও।",
+          modelAnswer: "সর্বোচ্চ উচ্চতা ও আদি অবস্থানে মোট শক্তি সমান (Ek + Ep = ধ্রুবক) প্রতিপাদন করে যৌক্তিক সিদ্ধান্ত।",
           rubrics: [
-            { id: "r4_1", criterion: "সিদ্ধান্ত", maxPoints: 1, description: "মতামত" },
-            { id: "r4_2", criterion: "তত্ত্বীয় ধারণা", maxPoints: 1, description: "তত্ত্ব" },
-            { id: "r4_3", criterion: "গাণিতিক প্রতিপাদন", maxPoints: 1, description: "গণনা" },
-            { id: "r4_4", criterion: "উপসংহার", maxPoints: 1, description: "সমন্বয়" },
+            {
+              id: "r4_1",
+              criterion: "পয়েন্ট ১: সিদ্ধান্ত উপস্থাপন",
+              maxPoints: 1,
+              description: "নীতিটি সংরক্ষিত থাকবে কি না সে সম্পর্কে স্পষ্ট প্রাথমিক মতামত দিলে ১ নম্বর।",
+            },
+            {
+              id: "r4_2",
+              criterion: "পয়েন্ট ২: তত্ত্বীয় ধারণা ও সমীকরণ",
+              maxPoints: 1,
+              description: "বিভব শক্তি ও গতিশক্তির সূত্রাবলী উপস্থাপনে ১ নম্বর।",
+            },
+            {
+              id: "r4_3",
+              criterion: "পয়েন্ট ৩: গাণিতিক প্রতিপাদন",
+              maxPoints: 1,
+              description: "উভয় অবস্থানে মোট শক্তির সমতা প্রমাণের গণনায় ১ নম্বর।",
+            },
+            {
+              id: "r4_4",
+              criterion: "পয়েন্ট ৪: তুলনামূলক উপসংহার",
+              maxPoints: 1,
+              description: "উদ্দীপকের সাথে সমন্বয় করে চূড়ান্ত সিদ্ধান্তে উপনীত হলে ১ নম্বর।",
+            },
           ],
         },
       ],
     },
   ]);
 
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  // Add CQ Question
+  const addCQ = () => {
+    const newQ: Question = {
+      id: `q_${Date.now()}_${questions.length + 1}`,
+      examId: "",
+      type: "CQ",
+      orderIndex: questions.length + 1,
+      marks: 10,
+      questionText: "উদ্দীপকটি পড়ে নিচের প্রশ্নগুলোর উত্তর দাও:",
+      stimulusText: "উদ্দীপকের দৃশ্যপট, উপাত্ত বা তথ্য এখানে লিখুন...",
+      cqParts: [
+        {
+          part: "ka",
+          bengaliLabel: "ক",
+          cognitiveLevel: "জ্ঞানমূলক",
+          marks: 1,
+          questionText: "জ্ঞানমূলক প্রশ্ন লিখুন",
+          modelAnswer: "আদর্শ উত্তর",
+          rubrics: [{ id: `r_${Date.now()}_1`, criterion: "সঠিক সংজ্ঞা বা তথ্য", maxPoints: 1, description: "সঠিক তথ্যে ১ নম্বর।" }],
+        },
+        {
+          part: "kha",
+          bengaliLabel: "খ",
+          cognitiveLevel: "অনুধাবনমূলক",
+          marks: 2,
+          questionText: "অনুধাবনমূলক প্রশ্ন লিখুন",
+          modelAnswer: "আদর্শ উত্তর (২ প্যারা)",
+          rubrics: [
+            { id: `r_${Date.now()}_2_1`, criterion: "১ম প্যারা: মূল কারণ", maxPoints: 1, description: "কারণ চিহ্নিতকরণে ১ নম্বর।" },
+            { id: `r_${Date.now()}_2_2`, criterion: "২য় প্যারা: ব্যাখ্যা", maxPoints: 1, description: "যৌক্তিক ব্যাখ্যায় ১ নম্বর।" },
+          ],
+        },
+        {
+          part: "ga",
+          bengaliLabel: "গ",
+          cognitiveLevel: "প্রয়োগমূলক",
+          marks: 3,
+          questionText: "প্রয়োগমূলক প্রশ্ন লিখুন",
+          modelAnswer: "সূত্র ও গাণিতিক গণনা...",
+          rubrics: [
+            { id: `r_${Date.now()}_3_1`, criterion: "সূত্র নির্ধারণ", maxPoints: 1, description: "সঠিক সূত্রে ১ নম্বর।" },
+            { id: `r_${Date.now()}_3_2`, criterion: "মান প্রতিস্থাপন", maxPoints: 1, description: "মান বসানোতে ১ নম্বর।" },
+            { id: `r_${Date.now()}_3_3`, criterion: "এককসহ উত্তর", maxPoints: 1, description: "এককসহ ফলাফলে ১ নম্বর।" },
+          ],
+        },
+        {
+          part: "gha",
+          bengaliLabel: "ঘ",
+          cognitiveLevel: "উচ্চতর দক্ষতামূলক",
+          marks: 4,
+          questionText: "উচ্চতর দক্ষতামূলক প্রশ্ন লিখুন",
+          modelAnswer: "৪ ধাপের সমন্বিত মূল্যায়ন...",
+          rubrics: [
+            { id: `r_${Date.now()}_4_1`, criterion: "সিদ্ধান্ত", maxPoints: 1, description: "স্পষ্ট মতামতে ১ নম্বর।" },
+            { id: `r_${Date.now()}_4_2`, criterion: "তত্ত্বীয় ব্যাখ্যা", maxPoints: 1, description: "তত্ত্বীয় উপস্থাপনে ১ নম্বর।" },
+            { id: `r_${Date.now()}_4_3`, criterion: "গাণিতিক বিশ্লেষণ", maxPoints: 1, description: "সঠিক বিশ্লেষণে ১ নম্বর।" },
+            { id: `r_${Date.now()}_4_4`, criterion: "উপসংহার", maxPoints: 1, description: "সমন্বিত সমাপনীতে ১ নম্বর।" },
+          ],
+        },
+      ],
+    };
+    setQuestions([...questions, newQ]);
+  };
+
+  // Add Written / Descriptive Question with Rubric Points
+  const addWrittenQuestion = () => {
+    const newQ: Question = {
+      id: `q_${Date.now()}_${questions.length + 1}`,
+      examId: "",
+      type: "DESCRIPTIVE",
+      orderIndex: questions.length + 1,
+      marks: 5,
+      questionText: "বর্ণনামূলক প্রশ্ন লিখুন...",
+      modelAnswer: "আদর্শ উত্তর বা নির্দেশিকা...",
+      rubrics: [
+        {
+          id: `r_${Date.now()}_w1`,
+          criterion: "পয়েন্ট ১: মূল তত্ত্ব ও ভিত্তি",
+          maxPoints: 2,
+          description: "মূল তত্ত্ব সঠিক উপস্থাপন করলে ২ নম্বর প্রদান করা হবে।",
+        },
+        {
+          id: `r_${Date.now()}_w2`,
+          criterion: "পয়েন্ট ২: প্রাসঙ্গিক উদাহরণ বা সমীকরণ",
+          maxPoints: 2,
+          description: "বাস্তব উদাহরণ বা সমীকরণ দিলে ২ নম্বর।",
+        },
+        {
+          id: `r_${Date.now()}_w3`,
+          criterion: "পয়েন্ট ৩: উপসংহার ও পরিচ্ছন্ন উপস্থাপন",
+          maxPoints: 1,
+          description: "পরিপাটি বিন্যাস ও উপসংহারে ১ নম্বর।",
+        },
+      ],
+    };
+    setQuestions([...questions, newQ]);
+  };
 
   // Add MCQ Question
   const addMCQ = () => {
@@ -126,72 +269,53 @@ export default function NewExamPage() {
     setQuestions([...questions, newQ]);
   };
 
-  // Add CQ Question
-  const addCQ = () => {
-    const newQ: Question = {
-      id: `q_${Date.now()}_${questions.length + 1}`,
-      examId: "",
-      type: "CQ",
-      orderIndex: questions.length + 1,
-      marks: 10,
-      questionText: "উদ্দীপকটি পড়ে নিচের প্রশ্নগুলোর উত্তর দাও:",
-      stimulusText: "উদ্দীপকের দৃশ্যপট বা তথ্য এখানে লিখুন...",
-      cqParts: [
-        {
-          part: "ka",
-          bengaliLabel: "ক",
-          cognitiveLevel: "জ্ঞানমূলক",
-          marks: 1,
-          questionText: "জ্ঞানমূলক প্রশ্ন লিখুন",
-          modelAnswer: "আদর্শ উত্তর",
-          rubrics: [{ id: "r_1", criterion: "সঠিক সংজ্ঞা", maxPoints: 1, description: "সংজ্ঞা" }],
-        },
-        {
-          part: "kha",
-          bengaliLabel: "খ",
-          cognitiveLevel: "অনুধাবনমূলক",
-          marks: 2,
-          questionText: "অনুধাবনমূলক প্রশ্ন লিখুন",
-          modelAnswer: "আদর্শ উত্তর (২ প্যারা)",
-          rubrics: [
-            { id: "r_2_1", criterion: "১ম প্যারা মূল কারণ", maxPoints: 1, description: "চিহ্নিতকরণ" },
-            { id: "r_2_2", criterion: "২য় প্যারা ব্যাখ্যা", maxPoints: 1, description: "ব্যাখ্যা" },
-          ],
-        },
-        {
-          part: "ga",
-          bengaliLabel: "গ",
-          cognitiveLevel: "প্রয়োগমূলক",
-          marks: 3,
-          questionText: "প্রয়োগমূলক গাণিতিক/বিশ্লেষণ প্রশ্ন লিখুন",
-          modelAnswer: "সূত্র ও গণনা...",
-          rubrics: [
-            { id: "r_3_1", criterion: "সূত্র নির্ধারণ", maxPoints: 1, description: "সূত্র" },
-            { id: "r_3_2", criterion: "মান বসানো", maxPoints: 1, description: "মান" },
-            { id: "r_3_3", criterion: "উত্তর ও একক", maxPoints: 1, description: "উত্তর" },
-          ],
-        },
-        {
-          part: "gha",
-          bengaliLabel: "ঘ",
-          cognitiveLevel: "উচ্চতর দক্ষতামূলক",
-          marks: 4,
-          questionText: "উচ্চতর দক্ষতামূলক তুলনামূলক প্রশ্ন লিখুন",
-          modelAnswer: "৪ ধাপের সমন্বিত মূল্যায়ন...",
-          rubrics: [
-            { id: "r_4_1", criterion: "সিদ্ধান্ত", maxPoints: 1, description: "সিদ্ধান্ত" },
-            { id: "r_4_2", criterion: "তত্ত্বীয় ব্যাখ্যা", maxPoints: 1, description: "তত্ত্ব" },
-            { id: "r_4_3", criterion: "গাণিতিক প্রমাণ", maxPoints: 1, description: "প্রমাণ" },
-            { id: "r_4_4", criterion: "চূড়ান্ত মূল্যায়ন", maxPoints: 1, description: "উপসংহার" },
-          ],
-        },
-      ],
-    };
-    setQuestions([...questions, newQ]);
-  };
-
   const removeQuestion = (id: string) => {
     setQuestions(questions.filter((q) => q.id !== id));
+  };
+
+  // Rubric helpers for CQ Subparts
+  const addCQPartRubric = (qIdx: number, pIdx: number) => {
+    const updated = [...questions];
+    const targetPart = updated[qIdx].cqParts?.[pIdx];
+    if (targetPart) {
+      targetPart.rubrics.push({
+        id: `r_${Date.now()}`,
+        criterion: "নতুন পয়েন্ট / মানদণ্ড",
+        maxPoints: 1,
+        description: "এই পয়েন্ট উপস্থিত থাকলে নির্ধারিত নম্বর প্রদান করা হবে।",
+      });
+      setQuestions(updated);
+    }
+  };
+
+  const removeCQPartRubric = (qIdx: number, pIdx: number, rIdx: number) => {
+    const updated = [...questions];
+    const targetPart = updated[qIdx].cqParts?.[pIdx];
+    if (targetPart && targetPart.rubrics.length > 1) {
+      targetPart.rubrics.splice(rIdx, 1);
+      setQuestions(updated);
+    }
+  };
+
+  // Rubric helpers for Written Questions
+  const addWrittenRubric = (qIdx: number) => {
+    const updated = [...questions];
+    if (!updated[qIdx].rubrics) updated[qIdx].rubrics = [];
+    updated[qIdx].rubrics!.push({
+      id: `r_${Date.now()}`,
+      criterion: "নতুন প্রয়োজনীয় পয়েন্ট",
+      maxPoints: 1,
+      description: "এই শর্ত পূরণ করলে নম্বর প্রদান করা হবে।",
+    });
+    setQuestions(updated);
+  };
+
+  const removeWrittenRubric = (qIdx: number, rIdx: number) => {
+    const updated = [...questions];
+    if (updated[qIdx].rubrics && updated[qIdx].rubrics!.length > 1) {
+      updated[qIdx].rubrics!.splice(rIdx, 1);
+      setQuestions(updated);
+    }
   };
 
   const handleSaveExam = async () => {
@@ -218,16 +342,24 @@ export default function NewExamPage() {
           isOnline: true,
           isPublished: true,
           accessCode,
+          institutionSlug: instSlug || undefined,
           questions,
         }),
       });
 
       const data = await res.json();
       if (data.success) {
-        router.push("/teacher");
+        if (instSlug) {
+          router.push(`/portal/${instSlug}`);
+        } else {
+          router.push("/portal");
+        }
+      } else {
+        alert(data.error || "Failed to create exam");
       }
     } catch (err) {
       console.error(err);
+      alert("An error occurred while saving the exam.");
     } finally {
       setIsSubmitting(false);
     }
@@ -236,20 +368,20 @@ export default function NewExamPage() {
   return (
     <div className="container mx-auto max-w-5xl px-4 sm:px-6 py-8 space-y-8">
       {/* Top Header */}
-      <div className="flex items-center justify-between pb-4 border-b border-border">
+      <div className="flex flex-wrap items-center justify-between pb-4 border-b border-border gap-4">
         <div className="flex items-center gap-3">
           <Link
-            href="/teacher"
+            href={instSlug ? `/portal/${instSlug}` : "/portal"}
             className="p-2 rounded-xl border border-border hover:bg-accent transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />
           </Link>
           <div>
             <h1 className="text-xl sm:text-2xl font-black text-foreground">
-              Create New Exam & Marking Rubrics
+              Create Exam with Custom Rubric Points
             </h1>
             <p className="text-xs text-muted-foreground">
-              Configure Creative Questions (ক, খ, গ, ঘ), MCQs, or IELTS writing topics.
+              Define questions, model answers, and exact marks for each point so AI evaluates answer sheets transparently.
             </p>
           </div>
         </div>
@@ -260,7 +392,7 @@ export default function NewExamPage() {
           className="flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-xs sm:text-sm font-bold text-white shadow-md shadow-emerald-600/20 hover:bg-emerald-700 transition-all disabled:opacity-60"
         >
           {isSubmitting ? (
-            "Saving..."
+            "Publishing..."
           ) : (
             <>
               <Save className="h-4 w-4" />
@@ -270,7 +402,35 @@ export default function NewExamPage() {
         </button>
       </div>
 
-      {/* Step 1: Exam Metadata Card */}
+      {/* Institution Association Banner if created from an Institution Portal */}
+      {instSlug && (
+        <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold">
+              <Building2 className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-xs font-bold text-foreground">
+                Publishing for Institution Portal:{" "}
+                <span className="text-emerald-700 dark:text-emerald-300 font-extrabold font-mono">
+                  /portal/{instSlug}
+                </span>
+              </p>
+              <p className="text-[11px] text-muted-foreground">
+                This exam will be directly visible to your students on this institution's portal.
+              </p>
+            </div>
+          </div>
+          <Link
+            href={`/portal/${instSlug}`}
+            className="text-xs font-bold text-emerald-700 dark:text-emerald-300 hover:underline shrink-0"
+          >
+            View Portal →
+          </Link>
+        </div>
+      )}
+
+      {/* Step 1: Basic Exam Information */}
       <div className="rounded-2xl border border-border bg-card p-6 shadow-sm space-y-4">
         <h3 className="font-extrabold text-sm text-foreground flex items-center gap-2">
           <BookOpen className="h-4 w-4 text-emerald-600" />
@@ -284,7 +444,7 @@ export default function NewExamPage() {
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. HSC Physics 1st Paper Final Model Test"
+              placeholder="e.g. HSC Physics 1st Paper Weekly Model Test"
               className="w-full px-3.5 py-2 rounded-xl border border-border bg-background text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none"
             />
           </div>
@@ -295,13 +455,13 @@ export default function NewExamPage() {
               type="text"
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
-              placeholder="e.g. Physics / রসায়ন / IELTS Writing"
+              placeholder="e.g. Physics / রসায়ন / Math"
               className="w-full px-3.5 py-2 rounded-xl border border-border bg-background text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none"
             />
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-foreground">Curriculum / Exam Type:</label>
+            <label className="text-xs font-bold text-foreground">Curriculum / Exam Format:</label>
             <select
               value={curriculumCode}
               onChange={(e) => setCurriculumCode(e.target.value)}
@@ -338,51 +498,59 @@ export default function NewExamPage() {
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-foreground">Student Access Code:</label>
+            <label className="text-xs font-bold text-foreground">Direct Exam Access Code:</label>
             <input
               type="text"
               value={accessCode}
               onChange={(e) => setAccessCode(e.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, ""))}
-              placeholder="e.g. BATCH2026"
-              className="w-full px-3.5 py-2 rounded-xl border border-border bg-background text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none font-mono font-bold text-emerald-700"
+              placeholder="e.g. PHYS2026"
+              className="w-full px-3.5 py-2 rounded-xl border border-border bg-background text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none font-mono font-bold text-emerald-700 dark:text-emerald-400"
             />
           </div>
         </div>
 
         {/* Live Link Preview Callout */}
-        <div className="p-3.5 rounded-xl bg-emerald-50/80 border border-emerald-200 text-xs flex flex-wrap items-center justify-between gap-2">
+        <div className="p-3.5 rounded-xl bg-emerald-50/80 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-xs flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-emerald-600 shrink-0" />
-            <span className="text-muted-foreground font-medium">Direct Student Exam Link:</span>
-            <code className="font-mono font-bold text-emerald-800 bg-white px-2 py-0.5 rounded border border-emerald-200">
+            <span className="text-muted-foreground font-medium">Student Direct Exam Link:</span>
+            <code className="font-mono font-bold text-emerald-800 dark:text-emerald-300 bg-white dark:bg-card px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-700">
               /exam/{accessCode || "CODE"}
             </code>
           </div>
-          <span className="text-[11px] text-emerald-700 font-semibold">
-            ✓ Students can sign up, write answers, or snap photos of answer sheets
+          <span className="text-[11px] text-emerald-700 dark:text-emerald-300 font-semibold">
+            ✓ Students take exam online or snap photos of handwritten papers
           </span>
         </div>
       </div>
 
-      {/* Step 2: Questions & Rubrics */}
+      {/* Step 2: Questions & Specified Marking Rubrics */}
       <div className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h3 className="font-extrabold text-base text-foreground">
-              Step 2: Questions & Marking Rubrics
+            <h3 className="font-extrabold text-base text-foreground flex items-center gap-2">
+              <Scale className="h-5 w-5 text-emerald-600" />
+              Step 2: Questions & Specified Marking Rubrics
             </h3>
             <p className="text-xs text-muted-foreground">
-              Define the questions, model answers, and step marks so the AI evaluates scripts fairly.
+              Specify the model answers and the exact marks given for each required point.
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={addCQ}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-800 text-xs font-bold hover:bg-emerald-100 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-emerald-300 bg-emerald-50 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 text-xs font-bold hover:bg-emerald-100 transition-colors"
             >
               <PlusCircle className="h-3.5 w-3.5 text-emerald-600" />
               + Add CQ (ক, খ, গ, ঘ)
+            </button>
+            <button
+              onClick={addWrittenQuestion}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-blue-300 bg-blue-50 dark:bg-blue-950 text-blue-800 dark:text-blue-300 text-xs font-bold hover:bg-blue-100 transition-colors"
+            >
+              <PlusCircle className="h-3.5 w-3.5 text-blue-600" />
+              + Add Written Question
             </button>
             <button
               onClick={addMCQ}
@@ -395,31 +563,42 @@ export default function NewExamPage() {
         </div>
 
         {/* Questions List */}
-        <div className="space-y-4">
+        <div className="space-y-6">
           {questions.map((q, idx) => (
             <div
               key={q.id}
-              className="rounded-2xl border border-border bg-card p-6 shadow-sm space-y-4"
+              className="rounded-2xl border border-border bg-card p-6 shadow-sm space-y-5"
             >
-              <div className="flex items-center justify-between">
-                <span className="px-2.5 py-0.5 rounded-lg text-xs font-extrabold bg-muted text-foreground">
-                  Question #{idx + 1} • {q.type === "CQ" ? "Creative Question (১০ নম্বর)" : "MCQ (১ নম্বর)"}
-                </span>
+              {/* Question Header */}
+              <div className="flex items-center justify-between pb-3 border-b border-border">
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-1 rounded-lg text-xs font-extrabold bg-muted text-foreground">
+                    Question #{idx + 1}
+                  </span>
+                  <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                    {q.type === "CQ"
+                      ? "Creative Question (১০ নম্বর)"
+                      : q.type === "DESCRIPTIVE"
+                      ? `Written / Descriptive (${q.marks} নম্বর)`
+                      : "MCQ (১ নম্বর)"}
+                  </span>
+                </div>
                 <button
                   onClick={() => removeQuestion(q.id)}
-                  className="p-1 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                  className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                   title="Remove question"
                 >
                   <Trash2 className="h-4 w-4" />
                 </button>
               </div>
 
-              {q.type === "CQ" ? (
-                <div className="space-y-4">
+              {/* CQ TYPE */}
+              {q.type === "CQ" && (
+                <div className="space-y-5">
                   <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-foreground">উদ্দীপক (Stimulus):</label>
+                    <label className="text-xs font-bold text-foreground">উদ্দীপক (Stimulus Context):</label>
                     <textarea
-                      rows={3}
+                      rows={2}
                       value={q.stimulusText}
                       onChange={(e) => {
                         const updated = [...questions];
@@ -431,34 +610,39 @@ export default function NewExamPage() {
                   </div>
 
                   {/* 4 subparts: ক, খ, গ, ঘ */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                  <div className="space-y-4">
                     {q.cqParts?.map((part, pIdx) => (
                       <div
                         key={part.part}
-                        className="p-3.5 rounded-xl border border-border bg-muted/20 space-y-2"
+                        className="p-4 rounded-xl border border-border bg-muted/20 space-y-3"
                       >
                         <div className="flex items-center justify-between">
-                          <span className="font-extrabold text-xs text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                          <span className="font-extrabold text-xs text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950 px-2.5 py-1 rounded-lg border border-emerald-200 dark:border-emerald-800">
                             {part.bengaliLabel} - {part.cognitiveLevel}
                           </span>
-                          <span className="text-xs font-bold text-foreground">{part.marks} নম্বর</span>
-                        </div>
-                        <input
-                          type="text"
-                          value={part.questionText}
-                          onChange={(e) => {
-                            const updated = [...questions];
-                            if (updated[idx].cqParts) {
-                              updated[idx].cqParts[pIdx].questionText = e.target.value;
-                              setQuestions(updated);
-                            }
-                          }}
-                          className="w-full px-3 py-1.5 rounded-lg border border-border bg-background text-xs bengali-font"
-                        />
-                        <div className="space-y-1">
-                          <span className="text-[10px] font-bold text-muted-foreground uppercase">
-                            Model Answer & Rubrics:
+                          <span className="text-xs font-bold text-foreground">
+                            সর্বোচ্চ নম্বর: {part.marks}
                           </span>
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-[11px] font-semibold text-muted-foreground">প্রশ্ন:</label>
+                          <input
+                            type="text"
+                            value={part.questionText}
+                            onChange={(e) => {
+                              const updated = [...questions];
+                              if (updated[idx].cqParts) {
+                                updated[idx].cqParts[pIdx].questionText = e.target.value;
+                                setQuestions(updated);
+                              }
+                            }}
+                            className="w-full px-3 py-1.5 rounded-lg border border-border bg-background text-xs bengali-font"
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-[11px] font-semibold text-muted-foreground">আদর্শ উত্তর (Model Answer):</label>
                           <textarea
                             rows={2}
                             value={part.modelAnswer}
@@ -469,14 +653,227 @@ export default function NewExamPage() {
                                 setQuestions(updated);
                               }
                             }}
-                            className="w-full px-3 py-1 rounded-lg border border-border bg-background text-[11px] bengali-font"
+                            className="w-full px-3 py-1.5 rounded-lg border border-border bg-background text-xs bengali-font"
                           />
+                        </div>
+
+                        {/* Specified Rubric Points Breakdown */}
+                        <div className="pt-2 border-t border-border/60 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[11px] font-bold text-foreground flex items-center gap-1.5">
+                              <Scale className="h-3 w-3 text-emerald-600" />
+                              নম্বর বরাদ্দের সুনির্দিষ্ট পয়েন্টসমূহ (Marking Rubric Points):
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => addCQPartRubric(idx, pIdx)}
+                              className="text-[11px] font-bold text-emerald-600 hover:text-emerald-700 flex items-center gap-1"
+                            >
+                              <PlusCircle className="h-3 w-3" /> + Add Point
+                            </button>
+                          </div>
+
+                          <div className="space-y-2">
+                            {part.rubrics.map((r, rIdx) => (
+                              <div
+                                key={r.id}
+                                className="p-2.5 rounded-lg border border-border bg-background flex flex-col sm:flex-row items-start sm:items-center gap-2 text-xs"
+                              >
+                                <input
+                                  type="text"
+                                  value={r.criterion}
+                                  placeholder="পয়েন্ট / মানদণ্ডের নাম (e.g. গতিজড়তা চিহ্নিতকরণ)"
+                                  onChange={(e) => {
+                                    const updated = [...questions];
+                                    if (updated[idx].cqParts) {
+                                      updated[idx].cqParts[pIdx].rubrics[rIdx].criterion = e.target.value;
+                                      setQuestions(updated);
+                                    }
+                                  }}
+                                  className="flex-1 px-2.5 py-1 rounded border border-border bg-muted/20 text-xs"
+                                />
+
+                                <div className="flex items-center gap-1 shrink-0">
+                                  <span className="text-[11px] text-muted-foreground font-semibold">নম্বর:</span>
+                                  <input
+                                    type="number"
+                                    step="0.5"
+                                    value={r.maxPoints}
+                                    onChange={(e) => {
+                                      const updated = [...questions];
+                                      if (updated[idx].cqParts) {
+                                        updated[idx].cqParts[pIdx].rubrics[rIdx].maxPoints = Number(e.target.value);
+                                        setQuestions(updated);
+                                      }
+                                    }}
+                                    className="w-14 px-2 py-1 rounded border border-border bg-muted/20 text-xs font-bold text-center"
+                                  />
+                                </div>
+
+                                <input
+                                  type="text"
+                                  value={r.description}
+                                  placeholder="কেন নম্বর পাবে (e.g. ১ নম্বর প্রদান)"
+                                  onChange={(e) => {
+                                    const updated = [...questions];
+                                    if (updated[idx].cqParts) {
+                                      updated[idx].cqParts[pIdx].rubrics[rIdx].description = e.target.value;
+                                      setQuestions(updated);
+                                    }
+                                  }}
+                                  className="w-full sm:w-56 px-2.5 py-1 rounded border border-border bg-muted/20 text-xs"
+                                />
+
+                                {part.rubrics.length > 1 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => removeCQPartRubric(idx, pIdx, rIdx)}
+                                    className="p-1 text-muted-foreground hover:text-destructive"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </button>
+                                )}
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       </div>
                     ))}
                   </div>
                 </div>
-              ) : (
+              )}
+
+              {/* WRITTEN / DESCRIPTIVE TYPE */}
+              {q.type === "DESCRIPTIVE" && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                    <div className="sm:col-span-3 space-y-1">
+                      <label className="text-xs font-bold text-foreground">প্রশ্ন (Question Text):</label>
+                      <input
+                        type="text"
+                        value={q.questionText}
+                        onChange={(e) => {
+                          const updated = [...questions];
+                          updated[idx].questionText = e.target.value;
+                          setQuestions(updated);
+                        }}
+                        className="w-full px-3.5 py-2 rounded-xl border border-border bg-background text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-foreground">মোট নম্বর (Marks):</label>
+                      <input
+                        type="number"
+                        value={q.marks}
+                        onChange={(e) => {
+                          const updated = [...questions];
+                          updated[idx].marks = Number(e.target.value);
+                          setQuestions(updated);
+                        }}
+                        className="w-full px-3.5 py-2 rounded-xl border border-border bg-background text-xs font-bold focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-foreground">আদর্শ উত্তর (Model Answer):</label>
+                    <textarea
+                      rows={2}
+                      value={q.modelAnswer || ""}
+                      onChange={(e) => {
+                        const updated = [...questions];
+                        updated[idx].modelAnswer = e.target.value;
+                        setQuestions(updated);
+                      }}
+                      className="w-full px-3.5 py-2 rounded-xl border border-border bg-background text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                    />
+                  </div>
+
+                  {/* Specified Rubric Points Breakdown */}
+                  <div className="pt-2 border-t border-border space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                        <Scale className="h-3.5 w-3.5 text-blue-600" />
+                        এই প্রশ্নের সুনির্দিষ্ট পয়েন্ট ও নম্বর বরাদ্দ (Specified Points & Marks):
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => addWrittenRubric(idx)}
+                        className="text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                      >
+                        <PlusCircle className="h-3.5 w-3.5" /> + Add Point
+                      </button>
+                    </div>
+
+                    <div className="space-y-2">
+                      {q.rubrics?.map((r, rIdx) => (
+                        <div
+                          key={r.id}
+                          className="p-2.5 rounded-lg border border-border bg-background flex flex-col sm:flex-row items-start sm:items-center gap-2 text-xs"
+                        >
+                          <input
+                            type="text"
+                            value={r.criterion}
+                            placeholder="পয়েন্টের নাম (e.g. সূত্রের সঠিক প্রতিপাদন)"
+                            onChange={(e) => {
+                              const updated = [...questions];
+                              if (updated[idx].rubrics) {
+                                updated[idx].rubrics![rIdx].criterion = e.target.value;
+                                setQuestions(updated);
+                              }
+                            }}
+                            className="flex-1 px-2.5 py-1.5 rounded-lg border border-border bg-muted/20 text-xs"
+                          />
+
+                          <div className="flex items-center gap-1 shrink-0">
+                            <span className="text-[11px] text-muted-foreground font-semibold">নম্বর:</span>
+                            <input
+                              type="number"
+                              step="0.5"
+                              value={r.maxPoints}
+                              onChange={(e) => {
+                                const updated = [...questions];
+                                if (updated[idx].rubrics) {
+                                  updated[idx].rubrics![rIdx].maxPoints = Number(e.target.value);
+                                  setQuestions(updated);
+                                }
+                              }}
+                              className="w-14 px-2 py-1.5 rounded-lg border border-border bg-muted/20 text-xs font-bold text-center"
+                            />
+                          </div>
+
+                          <input
+                            type="text"
+                            value={r.description}
+                            placeholder="শর্ত বা ব্যাখ্যা"
+                            onChange={(e) => {
+                              const updated = [...questions];
+                              if (updated[idx].rubrics) {
+                                updated[idx].rubrics![rIdx].description = e.target.value;
+                                setQuestions(updated);
+                              }
+                            }}
+                            className="w-full sm:w-60 px-2.5 py-1.5 rounded-lg border border-border bg-muted/20 text-xs"
+                          />
+
+                          {q.rubrics && q.rubrics.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => removeWrittenRubric(idx, rIdx)}
+                              className="p-1 text-muted-foreground hover:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* MCQ TYPE */}
+              {q.type === "MCQ" && (
                 <div className="space-y-3">
                   <input
                     type="text"
@@ -486,13 +883,14 @@ export default function NewExamPage() {
                       updated[idx].questionText = e.target.value;
                       setQuestions(updated);
                     }}
+                    placeholder="বহুনির্বাচনী প্রশ্ন লিখুন..."
                     className="w-full px-3.5 py-2 rounded-xl border border-border bg-background text-xs"
                   />
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {q.mcqOptions?.map((opt, oIdx) => (
                       <div
                         key={opt.id}
-                        className="flex items-center gap-2 p-2 rounded-lg border border-border bg-background text-xs"
+                        className="flex items-center gap-2 p-2.5 rounded-xl border border-border bg-background text-xs"
                       >
                         <input
                           type="radio"
@@ -528,5 +926,19 @@ export default function NewExamPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function NewExamPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="container mx-auto p-16 text-center text-xs text-muted-foreground">
+          Loading exam creator...
+        </div>
+      }
+    >
+      <NewExamForm />
+    </Suspense>
   );
 }

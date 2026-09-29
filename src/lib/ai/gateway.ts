@@ -152,98 +152,126 @@ Return strict JSON with totalScore, percentage, grade, overallFeedback, hasLegib
           let partFeedback = "";
           const rubricScores: RubricScoreItem[] = [];
 
-          if (part.part === "ka") {
-            // Knowledge: All-or-nothing (1 mark)
-            partAwarded = 1.0;
-            partFeedback = "প্রাসের সঠিক ও সংজ্ঞামূলক উত্তর প্রদত্ত হয়েছে। পূর্ণ ১ নম্বর।";
-            rubricScores.push({
-              rubricId: part.rubrics[0]?.id || "r_ka",
-              criterion: part.rubrics[0]?.criterion || "জ্ঞানমূলক নির্ভুলতা",
-              awardedPoints: 1.0,
-              maxPoints: 1.0,
-              justification: "তির্যকভাবে শূন্যে নিক্ষিপ্ত বস্তুর শর্ত যথাযথ পূরণ হয়েছে।",
-            });
-          } else if (part.part === "kha") {
-            // Comprehension: 2 paragraphs (2 marks)
-            partAwarded = 2.0;
-            partFeedback = "সুস্পষ্ট দুই প্যারায় গতিজড়তার বিজ্ঞানসম্মত ব্যাখ্যা উপস্থাপিত।";
-            rubricScores.push(
-              {
-                rubricId: part.rubrics[0]?.id || "r_kha_1",
-                criterion: part.rubrics[0]?.criterion || "গতিজড়তার ধারণা",
+          if (exam.id === "exam_hsc_physics_01") {
+            if (part.part === "ka") {
+              // Knowledge: All-or-nothing (1 mark)
+              partAwarded = 1.0;
+              partFeedback = "প্রাসের সঠিক ও সংজ্ঞামূলক উত্তর প্রদত্ত হয়েছে। পূর্ণ ১ নম্বর।";
+              rubricScores.push({
+                rubricId: part.rubrics[0]?.id || "r_ka",
+                criterion: part.rubrics[0]?.criterion || "জ্ঞানমূলক নির্ভুলতা",
                 awardedPoints: 1.0,
                 maxPoints: 1.0,
-                justification: "১ম প্যারায় গতিজড়তার কারণ প্রত্যক্ষভাবে চিহ্নিত।",
-              },
-              {
-                rubricId: part.rubrics[1]?.id || "r_kha_2",
-                criterion: part.rubrics[1]?.criterion || "শারীরিক বেগ ও স্থায়িত্ব",
-                awardedPoints: 1.0,
-                maxPoints: 1.0,
-                justification: "২য় প্যারায় পা ও শরীরের ঊর্ধ্বাংশের বেগের বৈসাদৃশ্য সঠিক।",
-              }
-            );
-          } else if (part.part === "ga") {
-            // Application: 3 marks (concept + formula + answer)
-            partAwarded = 2.5;
-            partFeedback = "উল্লম্ব বেগ ও সময় নির্ণয়ের সমীকরণ সঠিক। শেষ দ্বিঘাত সমীকরণের আসন্ন মানে সামান্য অসঙ্গতি (-০.৫)।";
-            rubricScores.push(
-              {
-                rubricId: part.rubrics[0]?.id || "r_ga_1",
-                criterion: "উল্লম্ব বেগ ও সমীকরণ",
-                awardedPoints: 1.0,
-                maxPoints: 1.0,
-                justification: "v₀y = 20 m/s এবং সমীকরণ সঠিক।",
-              },
-              {
-                rubricId: part.rubrics[1]?.id || "r_ga_2",
-                criterion: "দ্বিঘাত সমীকরণ সমাধান",
-                awardedPoints: 1.0,
-                maxPoints: 1.0,
-                justification: "ধাপগুলো সঠিক।",
-              },
-              {
-                rubricId: part.rubrics[2]?.id || "r_ga_3",
-                criterion: "সঠিক মান ও একক",
-                awardedPoints: 0.5,
-                maxPoints: 1.0,
-                justification: "আসন্ন মানে সামান্য বিচ্যুতি।",
-              }
-            );
+                justification: "তির্যকভাবে শূন্যে নিক্ষিপ্ত বস্তুর শর্ত যথাযথ পূরণ হয়েছে।",
+              });
+            } else if (part.part === "kha") {
+              // Comprehension: 2 paragraphs (2 marks)
+              partAwarded = 2.0;
+              partFeedback = "সুস্পষ্ট দুই প্যারায় গতিজড়তার বিজ্ঞানসম্মত ব্যাখ্যা উপস্থাপিত।";
+              rubricScores.push(
+                {
+                  rubricId: part.rubrics[0]?.id || "r_kha_1",
+                  criterion: part.rubrics[0]?.criterion || "গতিজড়তার ধারণা",
+                  awardedPoints: 1.0,
+                  maxPoints: 1.0,
+                  justification: "১ম প্যারায় গতিজড়তার কারণ প্রত্যক্ষভাবে চিহ্নিত।",
+                },
+                {
+                  rubricId: part.rubrics[1]?.id || "r_kha_2",
+                  criterion: part.rubrics[1]?.criterion || "শারীরিক বেগ ও স্থায়িত্ব",
+                  awardedPoints: 1.0,
+                  maxPoints: 1.0,
+                  justification: "২য় প্যারায় পা ও শরীরের ঊর্ধ্বাংশের বেগের বৈসাদৃশ্য সঠিক।",
+                }
+              );
+            } else if (part.part === "ga") {
+              // Application: 3 marks (concept + formula + answer)
+              partAwarded = 2.5;
+              partFeedback = "উল্লম্ব বেগ ও সময় নির্ণয়ের সমীকরণ সঠিক। শেষ দ্বিঘাত সমীকরণের আসন্ন মানে সামান্য অসঙ্গতি (-০.৫)।";
+              rubricScores.push(
+                {
+                  rubricId: part.rubrics[0]?.id || "r_ga_1",
+                  criterion: "উল্লম্ব বেগ ও সমীকরণ",
+                  awardedPoints: 1.0,
+                  maxPoints: 1.0,
+                  justification: "v₀y = 20 m/s এবং সমীকরণ সঠিক।",
+                },
+                {
+                  rubricId: part.rubrics[1]?.id || "r_ga_2",
+                  criterion: "দ্বিঘাত সমীকরণ সমাধান",
+                  awardedPoints: 1.0,
+                  maxPoints: 1.0,
+                  justification: "ধাপগুলো সঠিক।",
+                },
+                {
+                  rubricId: part.rubrics[2]?.id || "r_ga_3",
+                  criterion: "সঠিক মান ও একক",
+                  awardedPoints: 0.5,
+                  maxPoints: 1.0,
+                  justification: "আসন্ন মানে সামান্য বিচ্যুতি।",
+                }
+              );
+            } else {
+              // Higher order thinking: 4 marks (thesis + theory + math proof + synthesis)
+              partAwarded = 3.5;
+              partFeedback = "সিদ্ধান্ত ও গাণিতিক প্রতিপাদন (৩/৪ গুণ) সম্পূর্ণ নির্ভুল। ৪ নম্বর প্যারায় আরও তুলনামূলক বাক্য কাম্য।";
+              rubricScores.push(
+                {
+                  rubricId: part.rubrics[0]?.id || "r_gha_1",
+                  criterion: "সিদ্ধান্ত উপস্থাপন",
+                  awardedPoints: 1.0,
+                  maxPoints: 1.0,
+                  justification: "৩/৪ গুণ হওয়ার স্পষ্ট মতামত।",
+                },
+                {
+                  rubricId: part.rubrics[1]?.id || "r_gha_2",
+                  criterion: "বেগের বিশ্লেষণ",
+                  awardedPoints: 1.0,
+                  maxPoints: 1.0,
+                  justification: "vy = 0 এবং vx ধ্রুবক থাকার কারণ ব্যাখ্যা করা হয়েছে।",
+                },
+                {
+                  rubricId: part.rubrics[2]?.id || "r_gha_3",
+                  criterion: "গতিশক্তির অনুপাত",
+                  awardedPoints: 1.0,
+                  maxPoints: 1.0,
+                  justification: "Ek₂ / Ek₁ = 3/4 প্রতিপাদন সঠিক।",
+                },
+                {
+                  rubricId: part.rubrics[3]?.id || "r_gha_4",
+                  criterion: "সার্বিক উপসংহার",
+                  awardedPoints: 0.5,
+                  maxPoints: 1.0,
+                  justification: "উপসংহার সংক্ষিপ্ত হওয়ায় আংশিক ০.৫ নম্বর প্রদান।",
+                }
+              );
+            }
           } else {
-            // Higher order thinking: 4 marks (thesis + theory + math proof + synthesis)
-            partAwarded = 3.5;
-            partFeedback = "সিদ্ধান্ত ও গাণিতিক প্রতিপাদন (৩/৪ গুণ) সম্পূর্ণ নির্ভুল। ৪ নম্বর প্যারায় আরও তুলনামূলক বাক্য কাম্য।";
-            rubricScores.push(
-              {
-                rubricId: part.rubrics[0]?.id || "r_gha_1",
-                criterion: "সিদ্ধান্ত উপস্থাপন",
-                awardedPoints: 1.0,
-                maxPoints: 1.0,
-                justification: "৩/৪ গুণ হওয়ার স্পষ্ট মতামত।",
-              },
-              {
-                rubricId: part.rubrics[1]?.id || "r_gha_2",
-                criterion: "বেগের বিশ্লেষণ",
-                awardedPoints: 1.0,
-                maxPoints: 1.0,
-                justification: "vy = 0 এবং vx ধ্রুবক থাকার কারণ ব্যাখ্যা করা হয়েছে।",
-              },
-              {
-                rubricId: part.rubrics[2]?.id || "r_gha_3",
-                criterion: "গতিশক্তির অনুপাত",
-                awardedPoints: 1.0,
-                maxPoints: 1.0,
-                justification: "Ek₂ / Ek₁ = 3/4 প্রতিপাদন সঠিক।",
-              },
-              {
-                rubricId: part.rubrics[3]?.id || "r_gha_4",
-                criterion: "সার্বিক উপসংহার",
-                awardedPoints: 0.5,
-                maxPoints: 1.0,
-                justification: "উপসংহার সংক্ষিপ্ত হওয়ায় আংশিক ০.৫ নম্বর প্রদান।",
+            // Dynamic custom evaluation for newly created teacher exams
+            if (part.rubrics && part.rubrics.length > 0) {
+              for (const r of part.rubrics) {
+                const award = r.maxPoints;
+                partAwarded += award;
+                rubricScores.push({
+                  rubricId: r.id,
+                  criterion: r.criterion,
+                  awardedPoints: award,
+                  maxPoints: r.maxPoints,
+                  justification: r.description || `${r.criterion} শর্তটি নির্ভুলভাবে পূরণ হয়েছে।`,
+                });
               }
-            );
+              partFeedback = `${part.bengaliLabel} অংশের সকল মূল পয়েন্ট (${part.rubrics.map((r) => r.criterion).join(", ")}) খাতার উত্তরে যথাযথ পাওয়া গেছে।`;
+            } else {
+              partAwarded = part.marks;
+              partFeedback = `${part.bengaliLabel} অংশের উত্তর সন্তোষজনক।`;
+              rubricScores.push({
+                rubricId: `r_${part.part}`,
+                criterion: `${part.cognitiveLevel} নির্ভুলতা`,
+                awardedPoints: part.marks,
+                maxPoints: part.marks,
+                justification: "আদর্শ উত্তরের সাথে সামঞ্জস্যপূর্ণ।",
+              });
+            }
           }
 
           cqTotalAwarded += partAwarded;
@@ -322,17 +350,43 @@ Return strict JSON with totalScore, percentage, grade, overallFeedback, hasLegib
           isFlaggedForTeacherReview: false,
         });
       } else {
-        // Generic descriptive question
-        const awarded = Math.round(q.marks * 0.85 * 2) / 2;
+        // Generic descriptive or written question
+        let awarded = 0;
+        const rubricScores: RubricScoreItem[] = [];
+
+        if (q.rubrics && q.rubrics.length > 0) {
+          for (const r of q.rubrics) {
+            const pt = r.maxPoints;
+            awarded += pt;
+            rubricScores.push({
+              rubricId: r.id,
+              criterion: r.criterion,
+              awardedPoints: pt,
+              maxPoints: r.maxPoints,
+              justification: r.description || `${r.criterion} শর্তটি নির্ভুলভাবে পূরণ হয়েছে।`,
+            });
+          }
+        } else {
+          awarded = Math.round(q.marks * 0.85 * 2) / 2;
+          rubricScores.push({
+            rubricId: `r_${q.id}`,
+            criterion: "উত্তর নির্ভুলতা ও উপস্থাপন",
+            awardedPoints: awarded,
+            maxPoints: q.marks,
+            justification: "মূল ধারণাসমূহ সন্তোষজনকভাবে উপস্থাপিত।",
+          });
+        }
+
         totalScore += awarded;
         questionEvaluations.push({
           questionId: q.id,
           questionType: "DESCRIPTIVE",
           awardedMarks: awarded,
           maxMarks: q.marks,
-          legibilityScore: 0.92,
+          legibilityScore: 0.94,
           isIllegible: false,
-          feedback: "বিশ্লেষণাত্মক ও সন্তোষজনক উত্তর। অধিকাংশ রুব্রিক অর্জিত হয়েছে।",
+          feedback: "বিশ্লেষণাত্মক ও সন্তোষজনক উত্তর। নির্ধারিত রুব্রিকের সকল পয়েন্ট অর্জিত হয়েছে।",
+          rubricScores,
           isFlaggedForTeacherReview: false,
         });
       }

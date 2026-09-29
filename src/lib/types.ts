@@ -117,6 +117,7 @@ export interface Exam {
   updatedAt: string;
   accessCode?: string;
   isPublic?: boolean;
+  institutionSlug?: string;
 }
 
 export interface SubmissionAnswer {
