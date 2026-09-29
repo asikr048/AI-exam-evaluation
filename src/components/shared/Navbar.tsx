@@ -18,6 +18,8 @@ import {
   X,
   CreditCard,
   School,
+  BookOpen,
+  KeyRound,
 } from "lucide-react";
 
 export function Navbar() {
@@ -166,54 +168,87 @@ export function Navbar() {
               </button>
 
               {isUserMenuOpen && (
-                <div className="absolute right-0 mt-2 w-64 rounded-2xl border border-border bg-card p-2 shadow-2xl z-50 animate-in fade-in slide-in-from-top-2">
-                  <div className="px-3 py-2.5 border-b border-border mb-1">
-                    <p className="text-xs font-bold text-foreground truncate">{currentUser.name}</p>
+                <div className="absolute right-0 mt-2 w-72 rounded-2xl border border-border bg-card p-2 shadow-2xl z-50 animate-in fade-in slide-in-from-top-2">
+                  <div className="px-3.5 py-3 border-b border-border/80 mb-1 bg-muted/30 rounded-xl">
+                    <p className="text-sm font-extrabold text-foreground truncate">{currentUser.name}</p>
                     <p className="text-[11px] text-muted-foreground truncate">{currentUser.email}</p>
-                    <span className="inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-extrabold bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                      {currentUser.role === "ADMIN" ? "Super Admin" : currentUser.role === "TEACHER" ? "Institution / Educator" : "Student Account"}
-                    </span>
+                    <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
+                      <span className="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
+                        {currentUser.role === "ADMIN" ? "⚡ Super Admin" : currentUser.role === "TEACHER" ? "🏛️ Institution" : "🎓 Student"}
+                      </span>
+                      {currentUser.institution && (
+                        <span className="text-[10px] text-muted-foreground truncate max-w-[130px]">
+                          • {currentUser.institution}
+                        </span>
+                      )}
+                    </div>
                   </div>
 
-                  <Link
-                    href="/profile"
-                    onClick={() => setIsUserMenuOpen(false)}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-foreground hover:bg-accent transition-colors"
-                  >
-                    <History className="h-4 w-4 text-emerald-600" />
-                    <span>My Profile & Exam History</span>
-                  </Link>
-
-                  <Link
-                    href="/profile?tab=institutions"
-                    onClick={() => setIsUserMenuOpen(false)}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-foreground hover:bg-accent transition-colors"
-                  >
-                    <Building2 className="h-4 w-4 text-emerald-600" />
-                    <span>My Institution Portals</span>
-                  </Link>
-
-                  <Link
-                    href="/portal"
-                    onClick={() => setIsUserMenuOpen(false)}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-foreground hover:bg-accent transition-colors"
-                  >
-                    <School className="h-4 w-4 text-emerald-600" />
-                    <span>Browse All Institutions</span>
-                  </Link>
-
-                  {currentUser.role === "ADMIN" && (
+                  <div className="space-y-0.5 py-1">
                     <Link
-                      href="/admin/ai-settings"
+                      href="/profile?tab=exams"
+                      onClick={() => setIsUserMenuOpen(false)}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold text-foreground hover:bg-emerald-50 dark:hover:bg-emerald-950/40 hover:text-emerald-700 transition-colors"
+                    >
+                      <div className="p-1.5 rounded-lg bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600">
+                        <BookOpen className="h-4 w-4" />
+                      </div>
+                      <div className="text-left">
+                        <div className="font-bold">My Exams</div>
+                        <div className="text-[10px] font-normal text-muted-foreground">Created exams & answer submissions</div>
+                      </div>
+                    </Link>
+
+                    <Link
+                      href="/profile?tab=institutions"
+                      onClick={() => setIsUserMenuOpen(false)}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold text-foreground hover:bg-emerald-50 dark:hover:bg-emerald-950/40 hover:text-emerald-700 transition-colors"
+                    >
+                      <div className="p-1.5 rounded-lg bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600">
+                        <Building2 className="h-4 w-4" />
+                      </div>
+                      <div className="text-left">
+                        <div className="font-bold">My Institutions</div>
+                        <div className="text-[10px] font-normal text-muted-foreground">Manage portals, batches & codes</div>
+                      </div>
+                    </Link>
+
+                    <Link
+                      href="/profile?tab=account"
+                      onClick={() => setIsUserMenuOpen(false)}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold text-foreground hover:bg-emerald-50 dark:hover:bg-emerald-950/40 hover:text-emerald-700 transition-colors"
+                    >
+                      <div className="p-1.5 rounded-lg bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600">
+                        <KeyRound className="h-4 w-4" />
+                      </div>
+                      <div className="text-left">
+                        <div className="font-bold">Change Name & Password</div>
+                        <div className="text-[10px] font-normal text-muted-foreground">Edit full name & update password</div>
+                      </div>
+                    </Link>
+                  </div>
+
+                  <div className="pt-1 border-t border-border mt-1 space-y-0.5">
+                    <Link
+                      href="/portal"
                       onClick={() => setIsUserMenuOpen(false)}
                       className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-foreground hover:bg-accent transition-colors"
                     >
-                      <ShieldCheck className="h-4 w-4 text-amber-500" />
-                      <span>Admin AI Gateway</span>
+                      <School className="h-4 w-4 text-muted-foreground" />
+                      <span>Browse All Institutions</span>
                     </Link>
-                  )}
 
-                  <div className="pt-1 border-t border-border mt-1">
+                    {currentUser.role === "ADMIN" && (
+                      <Link
+                        href="/admin/ai-settings"
+                        onClick={() => setIsUserMenuOpen(false)}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-foreground hover:bg-accent transition-colors"
+                      >
+                        <ShieldCheck className="h-4 w-4 text-amber-500" />
+                        <span>Admin AI Gateway</span>
+                      </Link>
+                    )}
+
                     <button
                       onClick={handleLogout}
                       className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors text-left"
@@ -264,22 +299,74 @@ export function Navbar() {
 
       {/* Mobile Menu Drawer */}
       {isMobileMenuOpen && (
-        <div className="md:hidden border-b border-border bg-card p-4 space-y-2 animate-in fade-in">
-          {navLinks.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              onClick={() => setIsMobileMenuOpen(false)}
-              className={`block px-3 py-2 rounded-xl text-sm font-semibold ${
-                pathname === link.href
-                  ? "bg-emerald-50 dark:bg-emerald-950 text-emerald-700"
-                  : "text-foreground hover:bg-accent"
-              }`}
-            >
-              {link.label}
-            </Link>
-          ))}
-          {!currentUser && (
+        <div className="md:hidden border-b border-border bg-card p-4 space-y-3 animate-in fade-in">
+          {currentUser && (
+            <div className="p-3.5 rounded-2xl bg-muted/40 border border-border space-y-2.5">
+              <div className="flex items-center gap-2.5">
+                <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-600 text-white flex items-center justify-center font-bold text-sm shadow-sm">
+                  {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : "U"}
+                </div>
+                <div className="overflow-hidden">
+                  <p className="text-xs font-bold text-foreground truncate">{currentUser.name}</p>
+                  <p className="text-[10px] text-muted-foreground truncate">{currentUser.email}</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-1.5 pt-1">
+                <Link
+                  href="/profile?tab=exams"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="p-2 rounded-xl bg-card border border-border text-center text-[11px] font-bold text-foreground hover:border-emerald-500 shadow-sm"
+                >
+                  My Exams
+                </Link>
+                <Link
+                  href="/profile?tab=institutions"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="p-2 rounded-xl bg-card border border-border text-center text-[11px] font-bold text-foreground hover:border-emerald-500 shadow-sm"
+                >
+                  Institutions
+                </Link>
+                <Link
+                  href="/profile?tab=account"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="p-2 rounded-xl bg-card border border-border text-center text-[11px] font-bold text-foreground hover:border-emerald-500 shadow-sm"
+                >
+                  Password
+                </Link>
+              </div>
+            </div>
+          )}
+
+          <div className="space-y-1">
+            {navLinks.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                onClick={() => setIsMobileMenuOpen(false)}
+                className={`block px-3 py-2 rounded-xl text-sm font-semibold ${
+                  pathname === link.href
+                    ? "bg-emerald-50 dark:bg-emerald-950 text-emerald-700"
+                    : "text-foreground hover:bg-accent"
+                }`}
+              >
+                {link.label}
+              </Link>
+            ))}
+          </div>
+
+          {currentUser ? (
+            <div className="pt-2 border-t border-border">
+              <button
+                onClick={() => {
+                  setIsMobileMenuOpen(false);
+                  handleLogout();
+                }}
+                className="w-full py-2 px-3 rounded-xl text-left text-xs font-bold text-destructive hover:bg-destructive/10 flex items-center gap-2 transition-colors"
+              >
+                <LogOut className="h-4 w-4" /> Sign Out
+              </button>
+            </div>
+          ) : (
             <div className="pt-2 border-t border-border flex gap-2">
               <Link
                 href="/login"

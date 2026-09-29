@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   User as UserIcon,
   Mail,
@@ -24,17 +24,41 @@ import {
   Lock,
   Layers,
   FileText,
+  KeyRound,
+  Eye,
+  EyeOff,
+  Save,
+  Check,
+  AlertCircle,
+  Edit3,
 } from "lucide-react";
 import { InstitutionProfile, Submission, User, Exam } from "@/lib/types";
 
-export default function UserProfilePage() {
+function UserProfileContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [allInstitutions, setAllInstitutions] = useState<InstitutionProfile[]>([]);
   const [createdExams, setCreatedExams] = useState<Exam[]>([]);
   const [activeTab, setActiveTab] = useState<"exams" | "institutions" | "account">("exams");
   const [loading, setLoading] = useState(true);
+
+  // Profile & Password Edit State
+  const [editName, setEditName] = useState("");
+  const [editInstitution, setEditInstitution] = useState("");
+  const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
+  const [profileSuccessMsg, setProfileSuccessMsg] = useState("");
+  const [profileErrorMsg, setProfileErrorMsg] = useState("");
+
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const [showCurrentPass, setShowCurrentPass] = useState(false);
+  const [showNewPass, setShowNewPass] = useState(false);
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+  const [passwordSuccessMsg, setPasswordSuccessMsg] = useState("");
+  const [passwordErrorMsg, setPasswordErrorMsg] = useState("");
 
   // New Institution Form State
   const [showAddInst, setShowAddInst] = useState(false);
@@ -46,15 +70,23 @@ export default function UserProfilePage() {
   const [copiedLink, setCopiedLink] = useState<string | null>(null);
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      const tabParam = params.get("tab");
-      if (tabParam === "institutions") {
-        setActiveTab("institutions");
-      } else if (tabParam === "account") {
-        setActiveTab("account");
-      }
+    const tabParam = searchParams.get("tab");
+    if (tabParam === "institutions") {
+      setActiveTab("institutions");
+    } else if (tabParam === "account") {
+      setActiveTab("account");
+    } else if (tabParam === "exams") {
+      setActiveTab("exams");
+    }
+  }, [searchParams]);
 
+  const handleTabChange = (tab: "exams" | "institutions" | "account") => {
+    setActiveTab(tab);
+    router.replace(`/profile?tab=${tab}`, { scroll: false });
+  };
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
       // Fast restore from localStorage to eliminate flash/disconnection
       try {
         const cachedUser = localStorage.getItem("khata_user");
@@ -126,6 +158,98 @@ export default function UserProfilePage() {
       })
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (currentUser) {
+      setEditName(currentUser.name || "");
+      setEditInstitution(currentUser.institution || "");
+    }
+  }, [currentUser]);
+
+  const handleUpdateProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setProfileSuccessMsg("");
+    setProfileErrorMsg("");
+
+    if (!editName.trim()) {
+      setProfileErrorMsg("Name cannot be empty.");
+      return;
+    }
+
+    setIsUpdatingProfile(true);
+    try {
+      const res = await fetch("/api/auth/update-profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: editName.trim(),
+          institution: editInstitution.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (data.success && data.user) {
+        setCurrentUser(data.user);
+        try {
+          localStorage.setItem("khata_user", JSON.stringify(data.user));
+        } catch {}
+        setProfileSuccessMsg("Profile information updated successfully!");
+        setTimeout(() => setProfileSuccessMsg(""), 4000);
+      } else {
+        setProfileErrorMsg(data.error || "Failed to update profile.");
+      }
+    } catch (err: any) {
+      setProfileErrorMsg(err.message || "An error occurred.");
+    } finally {
+      setIsUpdatingProfile(false);
+    }
+  };
+
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordSuccessMsg("");
+    setPasswordErrorMsg("");
+
+    if (!currentPassword) {
+      setPasswordErrorMsg("Please enter your current password.");
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      setPasswordErrorMsg("New password must be at least 6 characters.");
+      return;
+    }
+
+    if (newPassword !== confirmNewPassword) {
+      setPasswordErrorMsg("New passwords do not match. Please verify.");
+      return;
+    }
+
+    setIsUpdatingPassword(true);
+    try {
+      const res = await fetch("/api/auth/update-profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          currentPassword,
+          newPassword,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setCurrentPassword("");
+        setNewPassword("");
+        setConfirmNewPassword("");
+        setPasswordSuccessMsg("Password changed successfully!");
+        setTimeout(() => setPasswordSuccessMsg(""), 4000);
+      } else {
+        setPasswordErrorMsg(data.error || "Failed to update password.");
+      }
+    } catch (err: any) {
+      setPasswordErrorMsg(err.message || "An error occurred.");
+    } finally {
+      setIsUpdatingPassword(false);
+    }
+  };
 
   const handleCopy = (slug: string) => {
     const url = `${window.location.origin}/portal/${slug}`;
@@ -287,7 +411,7 @@ export default function UserProfilePage() {
             {currentUser.role === "TEACHER" ? (
               <button
                 onClick={() => {
-                  setActiveTab("institutions");
+                  handleTabChange("institutions");
                   setShowAddInst(true);
                 }}
                 className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-600/20 transition-all flex items-center gap-1.5"
@@ -352,7 +476,7 @@ export default function UserProfilePage() {
       {/* Navigation Tabs */}
       <div className="flex items-center gap-2 border-b border-border pb-1">
         <button
-          onClick={() => setActiveTab("exams")}
+          onClick={() => handleTabChange("exams")}
           className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all ${
             activeTab === "exams"
               ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/20"
@@ -364,7 +488,7 @@ export default function UserProfilePage() {
         </button>
 
         <button
-          onClick={() => setActiveTab("institutions")}
+          onClick={() => handleTabChange("institutions")}
           className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all ${
             activeTab === "institutions"
               ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/20"
@@ -376,15 +500,15 @@ export default function UserProfilePage() {
         </button>
 
         <button
-          onClick={() => setActiveTab("account")}
+          onClick={() => handleTabChange("account")}
           className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all ${
             activeTab === "account"
               ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/20"
               : "text-muted-foreground hover:text-foreground hover:bg-accent"
           }`}
         >
-          <UserIcon className="h-4 w-4" />
-          Account & Settings
+          <KeyRound className="h-4 w-4" />
+          Edit Profile & Password
         </button>
       </div>
 
@@ -770,60 +894,242 @@ export default function UserProfilePage() {
         </div>
       )}
 
-      {/* Tab 3: Account & Settings */}
+      {/* Tab 3: Account, Profile & Password Settings */}
       {activeTab === "account" && (
-        <div className="space-y-6 max-w-2xl">
+        <div className="space-y-6 max-w-3xl">
+          {/* Section 1: Edit Profile (Name & Institution) */}
           <div className="p-6 rounded-3xl border border-border bg-card space-y-5 shadow-sm">
-            <h2 className="text-base font-extrabold text-foreground flex items-center gap-2">
-              <UserIcon className="h-4 w-4 text-emerald-600" />
-              Account Information
-            </h2>
-
-            <div className="space-y-4 text-xs">
-              <div className="flex justify-between py-2 border-b border-border">
-                <span className="text-muted-foreground">Full Name:</span>
-                <span className="font-bold text-foreground">{currentUser.name}</span>
+            <div className="flex items-center justify-between pb-3 border-b border-border">
+              <div>
+                <h2 className="text-base font-extrabold text-foreground flex items-center gap-2">
+                  <Edit3 className="h-4 w-4 text-emerald-600" />
+                  Edit Profile Information
+                </h2>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Update your display name and affiliated organization across KhataAI.
+                </p>
               </div>
-              <div className="flex justify-between py-2 border-b border-border">
-                <span className="text-muted-foreground">Email Address:</span>
-                <span className="font-bold text-foreground">{currentUser.email}</span>
-              </div>
-              <div className="flex justify-between py-2 border-b border-border">
-                <span className="text-muted-foreground">Account Role:</span>
-                <span className="font-bold text-emerald-600">
-                  {currentUser.role === "ADMIN"
-                    ? "Super Admin"
-                    : currentUser.role === "TEACHER"
-                    ? "Institution / Educator"
-                    : "Student"}
-                </span>
-              </div>
-              <div className="flex justify-between py-2 border-b border-border">
-                <span className="text-muted-foreground">Affiliation / Organization:</span>
-                <span className="font-bold text-foreground">
-                  {currentUser.institution || "Independent"}
-                </span>
-              </div>
-              <div className="flex justify-between py-2">
-                <span className="text-muted-foreground">Account ID:</span>
-                <span className="font-mono text-muted-foreground">{currentUser.id}</span>
-              </div>
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-200">
+                {currentUser.role === "ADMIN"
+                  ? "⚡ Super Admin"
+                  : currentUser.role === "TEACHER"
+                  ? "🏛️ Institution"
+                  : "🎓 Student"}
+              </span>
             </div>
 
-            <div className="pt-4 border-t border-border flex items-center justify-between">
-              <p className="text-[11px] text-muted-foreground">
-                KhataAI Secure Session Active
+            {profileSuccessMsg && (
+              <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-300 text-emerald-700 dark:text-emerald-300 text-xs font-bold flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 shrink-0" />
+                <span>{profileSuccessMsg}</span>
+              </div>
+            )}
+
+            {profileErrorMsg && (
+              <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/30 text-destructive text-xs font-bold flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                <span>{profileErrorMsg}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleUpdateProfile} className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-foreground">Full Name:</label>
+                  <input
+                    type="text"
+                    required
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-border bg-background text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                    placeholder="e.g. Asikur Rahman"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-foreground">Email Address:</label>
+                  <input
+                    type="email"
+                    disabled
+                    value={currentUser.email}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-border bg-muted/60 text-muted-foreground text-sm cursor-not-allowed"
+                  />
+                  <span className="text-[10px] text-muted-foreground">Primary login email (cannot be altered)</span>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-foreground">
+                  {currentUser.role === "TEACHER"
+                    ? "Institution / Coaching / Academy Name:"
+                    : "School / College / Varsity Affiliation:"}
+                </label>
+                <input
+                  type="text"
+                  value={editInstitution}
+                  onChange={(e) => setEditInstitution(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-border bg-background text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                  placeholder="e.g. Dhaka College / Udvash Coaching / Independent"
+                />
+              </div>
+
+              <div className="flex justify-end pt-2">
+                <button
+                  type="submit"
+                  disabled={isUpdatingProfile}
+                  className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-600/20 transition-all disabled:opacity-60 flex items-center gap-1.5"
+                >
+                  <Save className="h-3.5 w-3.5" />
+                  {isUpdatingProfile ? "Saving Changes..." : "Save Profile Changes"}
+                </button>
+              </div>
+            </form>
+          </div>
+
+          {/* Section 2: Change Password */}
+          <div className="p-6 rounded-3xl border border-border bg-card space-y-5 shadow-sm">
+            <div className="pb-3 border-b border-border">
+              <h2 className="text-base font-extrabold text-foreground flex items-center gap-2">
+                <KeyRound className="h-4 w-4 text-emerald-600" />
+                Change Password
+              </h2>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Update your login password for secure account access.
               </p>
-              <button
-                onClick={handleLogout}
-                className="px-4 py-2 rounded-xl border border-destructive/30 text-destructive hover:bg-destructive/10 text-xs font-bold transition-all flex items-center gap-1.5"
-              >
-                <LogOut className="h-3.5 w-3.5" /> Sign Out
-              </button>
             </div>
+
+            {passwordSuccessMsg && (
+              <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-300 text-emerald-700 dark:text-emerald-300 text-xs font-bold flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 shrink-0" />
+                <span>{passwordSuccessMsg}</span>
+              </div>
+            )}
+
+            {passwordErrorMsg && (
+              <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/30 text-destructive text-xs font-bold flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                <span>{passwordErrorMsg}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleUpdatePassword} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-foreground flex items-center justify-between">
+                  <span>Current Password:</span>
+                  <button
+                    type="button"
+                    onClick={() => setShowCurrentPass(!showCurrentPass)}
+                    className="text-[10px] text-muted-foreground hover:text-foreground flex items-center gap-1"
+                  >
+                    {showCurrentPass ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                    {showCurrentPass ? "Hide" : "Show"}
+                  </button>
+                </label>
+                <input
+                  type={showCurrentPass ? "text" : "password"}
+                  required
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  placeholder="Enter your current password"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-border bg-background text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-foreground flex items-center justify-between">
+                    <span>New Password:</span>
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPass(!showNewPass)}
+                      className="text-[10px] text-muted-foreground hover:text-foreground flex items-center gap-1"
+                    >
+                      {showNewPass ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                      {showNewPass ? "Hide" : "Show"}
+                    </button>
+                  </label>
+                  <input
+                    type={showNewPass ? "text" : "password"}
+                    required
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="At least 6 characters"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-border bg-background text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-foreground flex items-center justify-between">
+                    <span>Confirm New Password:</span>
+                    {confirmNewPassword && newPassword === confirmNewPassword && (
+                      <span className="text-[10px] text-emerald-600 font-bold flex items-center gap-0.5">
+                        <Check className="h-3 w-3" /> Matches
+                      </span>
+                    )}
+                  </label>
+                  <input
+                    type={showNewPass ? "text" : "password"}
+                    required
+                    value={confirmNewPassword}
+                    onChange={(e) => setConfirmNewPassword(e.target.value)}
+                    placeholder="Re-enter new password"
+                    className={`w-full px-3.5 py-2.5 rounded-xl border bg-background text-sm focus:ring-2 focus:outline-none ${
+                      confirmNewPassword && newPassword !== confirmNewPassword
+                        ? "border-destructive focus:ring-destructive"
+                        : "border-border focus:ring-emerald-500"
+                    }`}
+                  />
+                  {confirmNewPassword && newPassword !== confirmNewPassword && (
+                    <p className="text-[11px] text-destructive">Passwords do not match</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex justify-end pt-2">
+                <button
+                  type="submit"
+                  disabled={isUpdatingPassword || (!!confirmNewPassword && newPassword !== confirmNewPassword)}
+                  className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-600/20 transition-all disabled:opacity-60 flex items-center gap-1.5"
+                >
+                  <Lock className="h-3.5 w-3.5" />
+                  {isUpdatingPassword ? "Updating Password..." : "Change Password"}
+                </button>
+              </div>
+            </form>
+          </div>
+
+          {/* Section 3: Session & Sign Out */}
+          <div className="p-5 rounded-3xl border border-border bg-card flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
+            <div>
+              <p className="text-xs font-bold text-foreground">Secure KhataAI Session</p>
+              <p className="text-[11px] text-muted-foreground">
+                Account ID: <span className="font-mono">{currentUser.id}</span>
+              </p>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="px-4 py-2 rounded-xl border border-destructive/30 text-destructive hover:bg-destructive/10 text-xs font-bold transition-all flex items-center gap-1.5 shrink-0"
+            >
+              <LogOut className="h-3.5 w-3.5" /> Sign Out of All Devices
+            </button>
           </div>
         </div>
       )}
     </div>
+  );
+}
+
+export default function UserProfilePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="container mx-auto max-w-6xl px-4 sm:px-6 py-20 text-center">
+          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-emerald-600 border-r-transparent"></div>
+          <p className="text-xs text-muted-foreground mt-3 font-medium">Loading profile...</p>
+        </div>
+      }
+    >
+      <UserProfileContent />
+    </Suspense>
   );
 }

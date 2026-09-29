@@ -239,6 +239,22 @@ class DataStore {
     }
   }
 
+  public updateUser(userId: string, updates: Partial<User>): User | undefined {
+    const index = this.users.findIndex((u) => u.id === userId);
+    if (index === -1) return undefined;
+
+    this.users[index] = {
+      ...this.users[index],
+      ...updates,
+    };
+
+    if (this.currentUser && this.currentUser.id === userId) {
+      this.currentUser = this.users[index];
+    }
+
+    return this.users[index];
+  }
+
   public getAllUsers(): User[] {
     return this.users;
   }
