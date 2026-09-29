@@ -29,10 +29,27 @@ export function Navbar() {
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    try {
+      const cached = localStorage.getItem("khata_user");
+      if (cached) {
+        setCurrentUser(JSON.parse(cached));
+      }
+    } catch {}
+
     fetch("/api/auth/current-user")
       .then((res) => res.json())
       .then((data) => {
-        if (data.currentUser) setCurrentUser(data.currentUser);
+        if (data.currentUser) {
+          setCurrentUser(data.currentUser);
+          try {
+            localStorage.setItem("khata_user", JSON.stringify(data.currentUser));
+          } catch {}
+        } else {
+          setCurrentUser(null);
+          try {
+            localStorage.removeItem("khata_user");
+          } catch {}
+        }
       })
       .catch(() => {});
   }, [pathname]);
@@ -50,6 +67,9 @@ export function Navbar() {
 
   const handleLogout = async () => {
     try {
+      try {
+        localStorage.removeItem("khata_user");
+      } catch {}
       await fetch("/api/auth/logout", { method: "POST" });
       setCurrentUser(null);
       setIsUserMenuOpen(false);

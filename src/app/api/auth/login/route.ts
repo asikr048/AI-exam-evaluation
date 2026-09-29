@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { encodeSessionUser } from "@/lib/server-auth";
 import { store } from "@/lib/store";
 
 export async function POST(req: Request) {
@@ -29,6 +30,14 @@ export async function POST(req: Request) {
 
     // Set auth cookies
     response.cookies.set("khata_user_session", user.id, {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 60 * 60 * 24 * 30, // 30 days
+      path: "/",
+    });
+
+    response.cookies.set("khata_user_data", encodeSessionUser(user), {
       httpOnly: false,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",

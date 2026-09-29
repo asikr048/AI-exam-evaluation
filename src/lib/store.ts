@@ -214,6 +214,31 @@ class DataStore {
     return this.users.find((u) => u.id === id);
   }
 
+  public registerUserFromSession(user: User): void {
+    const existingIndex = this.users.findIndex(
+      (u) => u.id === user.id || u.email.toLowerCase() === user.email.toLowerCase()
+    );
+    if (existingIndex >= 0) {
+      this.users[existingIndex] = { ...this.users[existingIndex], ...user };
+    } else {
+      this.users.push(user);
+    }
+    this.currentUser = user;
+  }
+
+  public syncCustomInstitutions(customInstitutions: InstitutionProfile[]): void {
+    for (const inst of customInstitutions) {
+      const idx = this.institutions.findIndex(
+        (i) => i.id === inst.id || i.slug.toLowerCase() === inst.slug.toLowerCase()
+      );
+      if (idx >= 0) {
+        this.institutions[idx] = { ...this.institutions[idx], ...inst };
+      } else {
+        this.institutions.unshift(inst);
+      }
+    }
+  }
+
   public getAllUsers(): User[] {
     return this.users;
   }

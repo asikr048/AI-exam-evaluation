@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
+import { getAuthenticatedUser } from "@/lib/server-auth";
 import { store } from "@/lib/store";
 
 export async function GET(
@@ -26,9 +26,7 @@ export async function POST(
       );
     }
 
-    const cookieStore = await cookies();
-    const sessionUserId = cookieStore.get("khata_user_session")?.value;
-    const currentUser = sessionUserId ? store.getUserById(sessionUserId) : store.getCurrentUser();
+    const currentUser = await getAuthenticatedUser();
     const institution = store.getInstitutionBySlug(slug);
 
     if (!institution) {

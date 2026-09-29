@@ -54,29 +54,77 @@ export default function UserProfilePage() {
       } else if (tabParam === "account") {
         setActiveTab("account");
       }
+
+      // Fast restore from localStorage to eliminate flash/disconnection
+      try {
+        const cachedUser = localStorage.getItem("khata_user");
+        if (cachedUser) {
+          const parsed = JSON.parse(cachedUser);
+          if (parsed && parsed.id) {
+            setCurrentUser(parsed);
+            setLoading(false);
+          }
+        }
+      } catch {}
+
+      try {
+        const cachedInsts = localStorage.getItem("khata_custom_institutions");
+        if (cachedInsts) {
+          const parsed = JSON.parse(cachedInsts);
+          if (Array.isArray(parsed)) {
+            setAllInstitutions((prev) => {
+              const ids = new Set(prev.map((p) => p.id));
+              const news = parsed.filter((p: any) => !ids.has(p.id));
+              return [...news, ...prev];
+            });
+          }
+        }
+      } catch {}
     }
 
-    Promise.all([
-      fetch("/api/auth/current-user").then((r) => r.json()),
-      fetch("/api/submissions/history").then((r) => r.json()),
-      fetch("/api/institutions").then((r) => r.json()),
-      fetch("/api/exams").then((r) => r.json()),
-    ])
-      .then(([userData, subData, instData, examsData]) => {
-        if (userData.currentUser) {
-          setCurrentUser(userData.currentUser);
-        }
-        if (subData.submissions) {
-          setSubmissions(subData.submissions);
-        }
-        if (instData.institutions) {
-          setAllInstitutions(instData.institutions);
-        }
-        if (examsData.exams) {
-          setCreatedExams(examsData.exams);
+    // Fetch fresh user state from server
+    fetch("/api/auth/current-user")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.currentUser) {
+          setCurrentUser(data.currentUser);
+          try {
+            localStorage.setItem("khata_user", JSON.stringify(data.currentUser));
+          } catch {}
+        } else {
+          try {
+            const cached = localStorage.getItem("khata_user");
+            if (!cached) setCurrentUser(null);
+          } catch {
+            setCurrentUser(null);
+          }
         }
       })
+      .catch(() => {})
       .finally(() => setLoading(false));
+
+    fetch("/api/submissions/history")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.submissions) setSubmissions(data.submissions);
+      })
+      .catch(() => {});
+
+    fetch("/api/institutions")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.institutions) {
+          setAllInstitutions(data.institutions);
+        }
+      })
+      .catch(() => {});
+
+    fetch("/api/exams")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.exams) setCreatedExams(data.exams);
+      })
+      .catch(() => {});
   }, []);
 
   const handleCopy = (slug: string) => {
@@ -111,7 +159,12 @@ export default function UserProfilePage() {
       });
       const data = await res.json();
       if (data.institution) {
-        setAllInstitutions([data.institution, ...allInstitutions]);
+        const updated = [data.institution, ...allInstitutions];
+        setAllInstitutions(updated);
+        try {
+          const custom = updated.filter((i) => i.userId === currentUser?.id);
+          localStorage.setItem("khata_custom_institutions", JSON.stringify(custom));
+        } catch {}
         setShowAddInst(false);
         setInstName("");
         setInstSlug("");
@@ -128,7 +181,11 @@ export default function UserProfilePage() {
   };
 
   const handleLogout = async () => {
+    try {
+      localStorage.removeItem("khata_user");
+    } catch {}
     await fetch("/api/auth/logout", { method: "POST" });
+    setCurrentUser(null);
     router.push("/");
     router.refresh();
   };

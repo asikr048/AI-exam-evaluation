@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
+import { getAuthenticatedUser } from "@/lib/server-auth";
 import { store } from "@/lib/store";
 
 export async function GET(req: Request) {
@@ -7,9 +7,7 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const studentIdParam = searchParams.get("studentId");
 
-    const cookieStore = await cookies();
-    const sessionUserId = cookieStore.get("khata_user_session")?.value;
-    const user = sessionUserId ? store.getUserById(sessionUserId) : store.getCurrentUser();
+    const user = await getAuthenticatedUser();
     const targetId = studentIdParam || user?.id || user?.email;
 
     if (!targetId) {

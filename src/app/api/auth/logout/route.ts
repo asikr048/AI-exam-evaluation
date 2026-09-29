@@ -19,6 +19,14 @@ export async function POST() {
     path: "/",
   });
 
+  response.cookies.set("khata_user_data", "", {
+    httpOnly: false,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: 0,
+    path: "/",
+  });
+
   response.cookies.set("khata_admin_session", "", {
     httpOnly: false,
     secure: process.env.NODE_ENV === "production",

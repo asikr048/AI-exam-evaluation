@@ -1,20 +1,9 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
+import { getAuthenticatedUser } from "@/lib/server-auth";
 import { store } from "@/lib/store";
 
 export async function GET() {
-  const cookieStore = await cookies();
-  const sessionUserId = cookieStore.get("khata_user_session")?.value;
-  let currentUser = null;
-
-  if (sessionUserId) {
-    const user = store.getUserById(sessionUserId) || store.getAllUsers().find((u) => u.id === sessionUserId);
-    if (user) {
-      currentUser = user;
-      store.setCurrentUser(user);
-    }
-  }
-
+  const currentUser = await getAuthenticatedUser();
   const allUsers = store.getAllUsers();
   return NextResponse.json({ success: true, currentUser, allUsers });
 }

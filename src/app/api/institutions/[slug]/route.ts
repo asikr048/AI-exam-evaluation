@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
+import { getAuthenticatedUser } from "@/lib/server-auth";
 import { store } from "@/lib/store";
 
 export async function GET(req: Request, { params }: { params: Promise<{ slug: string }> }) {
@@ -10,15 +10,12 @@ export async function GET(req: Request, { params }: { params: Promise<{ slug: st
     return NextResponse.json({ success: false, error: "Institution not found" }, { status: 404 });
   }
 
-  const cookieStore = await cookies();
-  const sessionUserId = cookieStore.get("khata_user_session")?.value;
-  const loggedInUser = sessionUserId ? store.getUserById(sessionUserId) : store.getCurrentUser();
+  const loggedInUser = await getAuthenticatedUser();
 
   const isOwner =
     !!loggedInUser &&
     (loggedInUser.role === "ADMIN" ||
-      loggedInUser.id === institution.userId ||
-      sessionUserId === institution.userId);
+      loggedInUser.id === institution.userId);
 
   // Get batches and enrolled students for this institution
   const batches = store.getBatches(slug);
