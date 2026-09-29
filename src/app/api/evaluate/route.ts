@@ -5,7 +5,16 @@ import { store } from "@/lib/store";
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { submissionId, examId, answers, answerSheetImages, customExam } = body;
+    const {
+      submissionId,
+      examId,
+      answers,
+      answerSheetImages,
+      customExam,
+      typedAnswer,
+      answerSheetFileName,
+      apiKey,
+    } = body;
 
     let submission = submissionId ? store.getSubmissionById(submissionId) : null;
     let exam = examId ? store.getExamById(examId) : null;
@@ -44,6 +53,14 @@ export async function POST(req: Request) {
     // If standalone evaluation (sandbox demo)
     if (!submission) {
       const currentUser = store.getCurrentUser();
+      let preparedAnswers = answers || {};
+      if (typedAnswer && exam.questions && exam.questions.length > 0) {
+        preparedAnswers[exam.questions[0].id] = {
+          questionId: exam.questions[0].id,
+          typedAnswer: typedAnswer,
+        };
+      }
+
       submission = store.createSubmission({
         examId: exam.id,
         examTitle: exam.title,
@@ -53,7 +70,7 @@ export async function POST(req: Request) {
         studentName: currentUser?.name || "Independent Examinee",
         status: "EVALUATING",
         answerSheetImages: answerSheetImages || [],
-        answers: answers || {},
+        answers: preparedAnswers,
       });
     }
 
@@ -61,6 +78,8 @@ export async function POST(req: Request) {
       exam,
       submission,
       imageUrls: submission.answerSheetImages,
+      apiKey,
+      answerSheetFileName,
     });
 
     const updatedSubmission = store.updateSubmissionEvaluation(submission.id, evaluation);

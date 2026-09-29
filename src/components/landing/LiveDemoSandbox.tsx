@@ -24,6 +24,8 @@ import {
   Edit3,
   RefreshCw,
   Sliders,
+  Key,
+  PenTool,
 } from "lucide-react";
 import { EvaluationResult } from "@/lib/types";
 
@@ -86,7 +88,7 @@ const mockExams: Record<string, MockExamDefinition> = {
       },
     ],
     modelAnswer:
-      "(ক) প্রাস: আনুভূমিকের সাথে কোনো কোণে মহাশূন্যে বা বাতাসে নিক্ষিপ্ত বস্তুকে প্রাস বলে।\n(খ) গতিজড়তার কারণে। বাসের সমান গতিবেগ লাভ করে; ভূমিতে পা স্থির হলেও শরীরের ঊর্ধ্বাংশ পূর্বের বেগ বজায় রেখে সামনে এগিয়ে যেতে চায়।\n(গ) t = (v₀ sinθ)/g = (40 × sin 30°)/9.8 = 20/9.8 = 2.041 s ≈ 2.04 সেকেন্ড।\n(ঘ) Ek₁ = ½ m v₀² এবং শীর্ষবিন্দুতে অনুভূমিক বেগ vx = v₀ cos 30°। Ek₂ = ½ m (v₀ cos 30°)² = ¾ Ek₁। সর্বোচ্চ বিন্দুতে গতিশক্তি ¾ গুণ।",
+      "(ক) প্রাস: আনুভূমিকের সাথে কোনো কোণে মহাশূন্যে বা বাতাসে নিক্ষিপ্ত বস্তুকে প্রাস বলে।\n(খ) গতিজড়তার কারণে। বাসের সমান গতিবেগ লাভ করে; ভূমিতে পা স্থির হলেও শরীরের ঊর্ধ্বাংশ পূর্বের গতি বজায় রেখে সামনে এগিয়ে যেতে চায়।\n(গ) t = (v₀ sinθ)/g = (40 × sin 30°)/9.8 = 20/9.8 = 2.041 s ≈ 2.04 সেকেন্ড।\n(ঘ) Ek₁ = ½ m v₀² এবং শীর্ষবিন্দুতে অনুভূমিক বেগ vx = v₀ cos 30°। Ek₂ = ½ m (v₀ cos 30°)² = ¾ Ek₁। সর্বোচ্চ বিন্দুতে গতিশক্তি ¾ গুণ।",
     rubrics: [
       {
         id: "r_p_1",
@@ -275,6 +277,17 @@ export function LiveDemoSandbox() {
   const [demoMode, setDemoMode] = useState<"mock" | "create">("mock");
   const [selectedMockKey, setSelectedMockKey] = useState<string>("physics");
 
+  // In Create Question mode: choice between uploading an answer photo OR writing/typing the answer
+  const [studentInputMode, setStudentInputMode] = useState<"upload" | "write">("upload");
+  const [studentWrittenAnswer, setStudentWrittenAnswer] = useState<string>("");
+  const [customImageBase64, setCustomImageBase64] = useState<string | null>(null);
+  const [uploadedFileName, setUploadedFileName] = useState<string>("");
+  const [inputError, setInputError] = useState<string | null>(null);
+
+  // Optional Gemini API Key
+  const [apiKeyInput, setApiKeyInput] = useState<string>("");
+  const [showApiKeyModal, setShowApiKeyModal] = useState(false);
+
   const [isEvaluating, setIsEvaluating] = useState(false);
   const [progressStep, setProgressStep] = useState(0);
   const [evaluationResult, setEvaluationResult] = useState<EvaluationResult | null>(null);
@@ -282,8 +295,6 @@ export function LiveDemoSandbox() {
   const [showQuestionModal, setShowQuestionModal] = useState(false);
   const [showImageZoomModal, setShowImageZoomModal] = useState(false);
 
-  // Uploaded photo state (works in both mock and create modes)
-  const [customImageBase64, setCustomImageBase64] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
@@ -326,14 +337,15 @@ export function LiveDemoSandbox() {
 
   const activeMock = mockExams[selectedMockKey] || mockExams.physics;
 
-  // Active answer sheet image url
-  const activeImageUrl =
-    customImageBase64 ||
-    (demoMode === "mock" ? activeMock.sampleImage : "/samples/bengali_cq_script.svg");
+  // Active answer sheet image url: ONLY present if in mock mode OR custom photo uploaded in create mode!
+  const activeImageUrl: string | null =
+    demoMode === "mock"
+      ? (customImageBase64 || activeMock.sampleImage)
+      : customImageBase64;
 
   const steps = [
-    "📷 High-Resolution Vision Scanning & Line Detection...",
-    "🔍 Vision OCR Extracting Handwritten Text, Equations & Steps...",
+    "📷 Vision Scanning & Input Ingestion...",
+    "🔍 Vision OCR / Text Parsing Extracting Steps, Equations & Units...",
     "📐 Cross-referencing against Model Answer & Point-by-Point Rubrics...",
     "⚖️ Allocating Exact Marks & Generating Teacher-Grade Explanations...",
   ];
@@ -342,6 +354,8 @@ export function LiveDemoSandbox() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    setUploadedFileName(file.name);
+    setInputError(null);
     const reader = new FileReader();
     reader.onload = () => {
       if (typeof reader.result === "string") {
@@ -379,18 +393,34 @@ export function LiveDemoSandbox() {
   const totalCustomMarks = customRubrics.reduce((sum, r) => sum + Number(r.maxPoints || 0), 0);
 
   const runEvaluation = async () => {
+    setInputError(null);
+
+    // If in Create Question mode, verify an answer photo was uploaded or text was written
+    if (demoMode === "create") {
+      const hasPhoto = !!customImageBase64;
+      const hasText = !!studentWrittenAnswer.trim();
+
+      if (!hasPhoto && !hasText) {
+        setInputError("অনুগ্রহ করে মূল্যায়নের পূর্বে শিক্ষার্থীর উত্তরের ছবি আপলোড করুন অথবা উত্তরটি লিখে দিন। (Please upload an answer photo or write an answer first.)");
+        return;
+      }
+    }
+
     setIsEvaluating(true);
     setEvaluationResult(null);
 
     // Progress animation
     for (let i = 0; i < steps.length; i++) {
       setProgressStep(i);
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      await new Promise((resolve) => setTimeout(resolve, 450));
     }
 
     try {
       let payload: any = {
-        answerSheetImages: [activeImageUrl],
+        answerSheetImages: activeImageUrl ? [activeImageUrl] : [],
+        answerSheetFileName: uploadedFileName,
+        typedAnswer: studentWrittenAnswer,
+        apiKey: apiKeyInput.trim() || undefined,
       };
 
       if (demoMode === "mock") {
@@ -465,10 +495,10 @@ export function LiveDemoSandbox() {
             Interactive Real Question & Step-Marking Sandbox
           </div>
           <h2 className="text-3xl sm:text-4xl font-black tracking-tight text-foreground">
-            Real Questions, <span className="text-emerald-600">Handwritten Answer Sheets</span> & Step Explanations
+            Real Questions, <span className="text-emerald-600">Student Answers</span> & Step Explanations
           </h2>
           <p className="text-sm text-muted-foreground leading-relaxed">
-            Test authentic board exam mock questions with matching student answer papers, or create your own custom question with exact marking points, upload an answer sheet photo, and let our backend AI evaluate every step.
+            Grade standard curriculum mock papers with matching handwritten scripts, or create your own custom question, set exact points per mark, upload an answer photo or write an answer, and let our backend AI evaluate each step.
           </p>
         </div>
 
@@ -486,6 +516,8 @@ export function LiveDemoSandbox() {
                   onClick={() => {
                     setDemoMode("mock");
                     setCustomImageBase64(null);
+                    setStudentWrittenAnswer("");
+                    setInputError(null);
                     setEvaluationResult(null);
                   }}
                   className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-1.5 ${
@@ -501,6 +533,9 @@ export function LiveDemoSandbox() {
                 <button
                   onClick={() => {
                     setDemoMode("create");
+                    setCustomImageBase64(null);
+                    setStudentWrittenAnswer("");
+                    setInputError(null);
                     setEvaluationResult(null);
                   }}
                   className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-1.5 ${
@@ -510,13 +545,26 @@ export function LiveDemoSandbox() {
                   }`}
                 >
                   <Edit3 className="h-3.5 w-3.5" />
-                  <span>✏️ Create Question & Evaluate (প্রশ্ন তৈরি ও নিজস্ব খাতা)</span>
+                  <span>✏️ Create Question & Evaluate (প্রশ্ন তৈরি ও মূল্যায়ন)</span>
                 </button>
               </div>
             </div>
 
             {/* Action Buttons */}
             <div className="flex items-center gap-2.5">
+              <button
+                onClick={() => setShowApiKeyModal(true)}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-bold transition-all shadow-sm ${
+                  apiKeyInput
+                    ? "border-emerald-500 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                    : "border-border bg-background hover:bg-accent text-muted-foreground hover:text-foreground"
+                }`}
+                title="Connect custom Google Gemini API Key"
+              >
+                <Key className="h-3.5 w-3.5" />
+                <span>{apiKeyInput ? "Gemini Key: Active" : "AI Settings"}</span>
+              </button>
+
               <button
                 onClick={() => setShowQuestionModal(true)}
                 className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-border bg-background hover:bg-accent text-xs font-bold text-foreground transition-all shadow-sm"
@@ -535,7 +583,7 @@ export function LiveDemoSandbox() {
                 {isEvaluating ? (
                   <>
                     <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                    Evaluating Script...
+                    Evaluating...
                   </>
                 ) : (
                   <>
@@ -561,6 +609,8 @@ export function LiveDemoSandbox() {
                       onClick={() => {
                         setSelectedMockKey(key);
                         setCustomImageBase64(null);
+                        setStudentWrittenAnswer("");
+                        setInputError(null);
                         setEvaluationResult(null);
                       }}
                       className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
@@ -598,37 +648,78 @@ export function LiveDemoSandbox() {
             </div>
           </div>
 
+          {/* Validation Alert if no answer was provided */}
+          {inputError && (
+            <div className="px-6 py-3 bg-amber-500/10 border-b border-amber-500/20 text-amber-700 dark:text-amber-300 text-xs font-bold flex items-center gap-2 animate-in fade-in">
+              <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" />
+              <span>{inputError}</span>
+            </div>
+          )}
+
           {/* Sandbox Body: Split Screen */}
           <div className="grid grid-cols-1 lg:grid-cols-12 min-h-[600px]">
-            {/* Left: Student Answer Sheet Photo & Upload Controls */}
+            {/* Left: Student Answer Input (Photo or Written Answer) */}
             <div className="lg:col-span-5 p-5 sm:p-6 border-b lg:border-b-0 lg:border-r border-border bg-muted/15 flex flex-col justify-between space-y-5">
               <div className="space-y-4">
-                {/* Header with Photo Source and Upload Controls */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <FileText className="h-4 w-4 text-emerald-600" />
-                    <span className="text-xs font-bold text-foreground">
-                      Student Answer Sheet Photo
+                {/* Header with Input Mode Switcher in Create Mode */}
+                {demoMode === "create" ? (
+                  <div className="space-y-2">
+                    <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block">
+                      Provide Student Answer:
                     </span>
+                    <div className="grid grid-cols-2 gap-1 p-1 bg-background rounded-2xl border border-border">
+                      <button
+                        onClick={() => setStudentInputMode("upload")}
+                        className={`py-1.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
+                          studentInputMode === "upload"
+                            ? "bg-emerald-600 text-white shadow-sm"
+                            : "text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        <Upload className="h-3.5 w-3.5" />
+                        <span>Upload Answer Photo</span>
+                      </button>
+
+                      <button
+                        onClick={() => setStudentInputMode("write")}
+                        className={`py-1.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
+                          studentInputMode === "write"
+                            ? "bg-emerald-600 text-white shadow-sm"
+                            : "text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        <PenTool className="h-3.5 w-3.5" />
+                        <span>Write Answer</span>
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      onClick={() => fileInputRef.current?.click()}
-                      className="px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-800 text-[11px] font-bold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 transition-colors flex items-center gap-1 shadow-sm"
-                    >
-                      <Upload className="h-3 w-3" />
-                      <span>Upload Photo</span>
-                    </button>
-                    <button
-                      onClick={() => cameraInputRef.current?.click()}
-                      className="px-2.5 py-1 rounded-lg border border-border bg-background hover:bg-accent text-[11px] font-bold text-foreground transition-colors flex items-center gap-1 shadow-sm"
-                      title="Capture with camera"
-                    >
-                      <Camera className="h-3 w-3 text-muted-foreground" />
-                      <span className="hidden sm:inline">Camera</span>
-                    </button>
+                ) : (
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <FileText className="h-4 w-4 text-emerald-600" />
+                      <span className="text-xs font-bold text-foreground">
+                        Student Answer Sheet Photo
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => fileInputRef.current?.click()}
+                        className="px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-800 text-[11px] font-bold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 transition-colors flex items-center gap-1 shadow-sm"
+                      >
+                        <Upload className="h-3 w-3" />
+                        <span>Upload Photo</span>
+                      </button>
+                      <button
+                        onClick={() => cameraInputRef.current?.click()}
+                        className="px-2.5 py-1 rounded-lg border border-border bg-background hover:bg-accent text-[11px] font-bold text-foreground transition-colors flex items-center gap-1 shadow-sm"
+                        title="Capture with camera"
+                      >
+                        <Camera className="h-3 w-3 text-muted-foreground" />
+                        <span className="hidden sm:inline">Camera</span>
+                      </button>
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {/* Hidden File Inputs */}
                 <input
@@ -647,48 +738,141 @@ export function LiveDemoSandbox() {
                   className="hidden"
                 />
 
-                {/* Real Answer Sheet Image Viewport */}
-                <div className="relative group rounded-2xl border border-border overflow-hidden bg-slate-950 shadow-lg min-h-[320px] max-h-[400px] flex items-center justify-center">
-                  <img
-                    src={activeImageUrl}
-                    alt="Student Handwritten Answer Sheet"
-                    className="w-full h-full object-contain max-h-[400px] transition-transform duration-300 group-hover:scale-[1.02]"
-                  />
+                {/* VIEW 1: If Photo Upload Mode or Mock Mode with Active Image */}
+                {(demoMode === "mock" || (demoMode === "create" && studentInputMode === "upload")) && (
+                  <>
+                    {activeImageUrl ? (
+                      /* Display Selected / Uploaded Photo */
+                      <div className="space-y-3">
+                        <div className="relative group rounded-2xl border border-border overflow-hidden bg-slate-950 shadow-lg min-h-[300px] max-h-[380px] flex items-center justify-center">
+                          <img
+                            src={activeImageUrl}
+                            alt="Student Handwritten Answer Sheet"
+                            className="w-full h-full object-contain max-h-[380px] transition-transform duration-300 group-hover:scale-[1.02]"
+                          />
 
-                  {/* Top-Right Zoom Button */}
-                  <button
-                    onClick={() => setShowImageZoomModal(true)}
-                    className="absolute top-3 right-3 p-2 rounded-xl bg-black/60 hover:bg-black/80 text-white backdrop-blur transition-all shadow-md"
-                    title="Inspect Full Size Photo"
-                  >
-                    <Maximize2 className="h-4 w-4" />
-                  </button>
+                          {/* Top-Right Action Buttons */}
+                          <div className="absolute top-3 right-3 flex items-center gap-1.5">
+                            {customImageBase64 && (
+                              <button
+                                onClick={() => {
+                                  setCustomImageBase64(null);
+                                  setUploadedFileName("");
+                                  setEvaluationResult(null);
+                                }}
+                                className="p-2 rounded-xl bg-destructive/80 hover:bg-destructive text-white backdrop-blur transition-all shadow-md text-xs font-bold flex items-center gap-1"
+                                title="Remove this photo"
+                              >
+                                <X className="h-3.5 w-3.5" />
+                                <span className="hidden sm:inline text-[10px]">Remove</span>
+                              </button>
+                            )}
 
-                  {/* Bottom Script Caption */}
-                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-950/90 via-slate-950/40 to-transparent p-3 flex items-center justify-between text-[11px] text-white">
-                    <span className="font-semibold truncate max-w-[250px]">
-                      {customImageBase64
-                        ? "Custom Uploaded Photo"
-                        : demoMode === "mock"
-                        ? activeMock.imageLabel
-                        : "Handwritten Answer Sheet"}
-                    </span>
-                    <span className="px-2 py-0.5 rounded bg-emerald-600/80 font-bold text-[10px]">
-                      Real Handwritten Script
-                    </span>
-                  </div>
-                </div>
+                            <button
+                              onClick={() => setShowImageZoomModal(true)}
+                              className="p-2 rounded-xl bg-black/60 hover:bg-black/80 text-white backdrop-blur transition-all shadow-md"
+                              title="Inspect Full Size Photo"
+                            >
+                              <Maximize2 className="h-4 w-4" />
+                            </button>
+                          </div>
 
-                {/* Custom Reset Button if user uploaded a custom image in mock mode */}
-                {customImageBase64 && demoMode === "mock" && (
-                  <div className="flex justify-end">
-                    <button
-                      onClick={() => setCustomImageBase64(null)}
-                      className="text-emerald-600 hover:underline text-xs font-bold flex items-center gap-1"
-                    >
-                      <RotateCcw className="h-3 w-3" />
-                      <span>Reset to Mock Sample Script</span>
-                    </button>
+                          {/* Bottom Script Caption */}
+                          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-950/90 via-slate-950/40 to-transparent p-3 flex items-center justify-between text-[11px] text-white">
+                            <span className="font-semibold truncate max-w-[250px]">
+                              {customImageBase64
+                                ? `Uploaded: ${uploadedFileName || "Handwritten Script"}`
+                                : activeMock.imageLabel}
+                            </span>
+                            <span className="px-2 py-0.5 rounded bg-emerald-600/80 font-bold text-[10px]">
+                              Handwritten Script
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Change / Re-upload bar */}
+                        {demoMode === "create" && (
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-muted-foreground text-[11px]">
+                              Ready to evaluate this photo against your question.
+                            </span>
+                            <button
+                              onClick={() => fileInputRef.current?.click()}
+                              className="text-emerald-600 hover:underline font-bold text-xs flex items-center gap-1"
+                            >
+                              <Upload className="h-3 w-3" /> Change Photo
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      /* Clean Empty Dropzone when in Create Mode without any preloaded photo */
+                      <div className="border-2 border-dashed border-border rounded-3xl p-8 text-center space-y-4 bg-background/50 hover:bg-muted/10 transition-colors flex flex-col items-center justify-center min-h-[300px]">
+                        <div className="h-16 w-16 rounded-3xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-600 flex items-center justify-center shadow-sm">
+                          <Upload className="h-8 w-8" />
+                        </div>
+                        <div className="space-y-1.5 max-w-sm">
+                          <h5 className="font-extrabold text-sm text-foreground">
+                            Upload Student Answer Sheet Photo
+                          </h5>
+                          <p className="text-xs text-muted-foreground leading-relaxed">
+                            No default image is loaded. Select a photo of handwritten exam paper from your phone or computer, or snap with camera.
+                          </p>
+                        </div>
+                        <div className="flex items-center justify-center gap-2.5 pt-2">
+                          <button
+                            onClick={() => fileInputRef.current?.click()}
+                            className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-emerald-600/20"
+                          >
+                            <Upload className="h-3.5 w-3.5" /> Upload Photo
+                          </button>
+                          <button
+                            onClick={() => cameraInputRef.current?.click()}
+                            className="px-4 py-2.5 rounded-xl border border-border bg-background hover:bg-accent font-bold text-xs text-foreground flex items-center gap-1.5 shadow-sm"
+                          >
+                            <Camera className="h-3.5 w-3.5 text-muted-foreground" /> Camera
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {/* VIEW 2: Write / Type Student Answer Mode in Create Mode */}
+                {demoMode === "create" && studentInputMode === "write" && (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                        <PenTool className="h-3.5 w-3.5 text-emerald-600" />
+                        <span>Write Student Answer:</span>
+                      </span>
+                      <span className="text-[11px] text-muted-foreground">
+                        {studentWrittenAnswer.trim() ? studentWrittenAnswer.trim().split(/\s+/).length : 0} Words
+                      </span>
+                    </div>
+
+                    <textarea
+                      rows={11}
+                      value={studentWrittenAnswer}
+                      onChange={(e) => {
+                        setStudentWrittenAnswer(e.target.value);
+                        setInputError(null);
+                      }}
+                      placeholder="Type or paste the student's solution here (formulas, mathematical derivations, steps, explanations, or essays)...&#10;&#10;Example for kinematics:&#10;v = u + at = 0 + (2.5 * 8) = 20 m/s&#10;s = ut + 0.5*a*t^2 = 80 m&#10;&#10;Tip: If you test typing an unrelated topic (e.g. floods essay), the AI will detect the irrelevance and award 0 marks!"
+                      className="w-full p-4 rounded-2xl border border-border bg-background text-xs font-mono leading-relaxed focus:outline-none focus:ring-2 focus:ring-emerald-500/20 shadow-inner"
+                    />
+
+                    <div className="flex justify-between items-center text-xs text-muted-foreground">
+                      <span>Pure typed text evaluation via backend engine.</span>
+                      {studentWrittenAnswer && (
+                        <button
+                          onClick={() => setStudentWrittenAnswer("")}
+                          className="text-destructive hover:underline font-bold text-[11px]"
+                        >
+                          Clear Text
+                        </button>
+                      )}
+                    </div>
                   </div>
                 )}
 
@@ -719,10 +903,10 @@ export function LiveDemoSandbox() {
               <div className="pt-3 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
                 <span className="flex items-center gap-1.5">
                   <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-                  <span>Handwriting OCR Engine:</span>
+                  <span>AI Engine Status:</span>
                 </span>
                 <span className="font-bold text-emerald-600">
-                  Multimodal Vision • Bengali & English Lined
+                  {apiKeyInput ? "Google Gemini Vision Cloud" : "Backend AI Evaluator Active"}
                 </span>
               </div>
             </div>
@@ -754,6 +938,24 @@ export function LiveDemoSandbox() {
               ) : evaluationResult ? (
                 /* Full Evaluation Results View */
                 <div className="space-y-5 animate-in fade-in duration-300">
+                  {/* Irrelevant Alert Banner if mismatch caught */}
+                  {evaluationResult.totalScore === 0 && evaluationResult.overallFeedback.includes("Irrelevant") && (
+                    <div className="p-4 rounded-2xl bg-destructive/10 border border-destructive/30 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-destructive font-black text-xs">
+                          <AlertTriangle className="h-4 w-4 shrink-0" />
+                          <span>❌ IRRELEVANT ANSWER DETECTED — 0 MARKS AWARDED</span>
+                        </div>
+                        <span className="px-2 py-0.5 rounded bg-destructive text-white text-[10px] font-black uppercase">
+                          Failed (0%)
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        {evaluationResult.overallFeedback}
+                      </p>
+                    </div>
+                  )}
+
                   {/* Top Score Banner */}
                   <div
                     className={`p-4 sm:p-5 rounded-2xl border flex flex-wrap items-center justify-between gap-4 shadow-sm ${
@@ -913,13 +1115,12 @@ export function LiveDemoSandbox() {
                   {activeResultTab === "ocr" && (
                     <div className="p-4 rounded-2xl border border-border bg-muted/20 font-mono text-xs text-foreground space-y-2 max-h-[380px] overflow-y-auto">
                       <div className="text-[11px] font-bold text-muted-foreground uppercase font-sans flex items-center justify-between">
-                        <span>Multimodal OCR Extracted Script Text:</span>
-                        <span className="text-emerald-600 font-bold">Confidence: 96%</span>
+                        <span>Recognized Student Text:</span>
+                        <span className="text-emerald-600 font-bold">Processed</span>
                       </div>
                       <div className="whitespace-pre-wrap leading-relaxed text-muted-foreground">
-                        {demoMode === "mock"
-                          ? activeMock.modelAnswer
-                          : customModelAnswer}
+                        {studentWrittenAnswer ||
+                          (demoMode === "mock" ? activeMock.modelAnswer : customModelAnswer)}
                       </div>
                     </div>
                   )}
@@ -1075,7 +1276,7 @@ export function LiveDemoSandbox() {
                       className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-md shadow-emerald-600/20"
                     >
                       <Play className="h-4 w-4 fill-white" />
-                      Evaluate Uploaded Script with Real Backend AI
+                      Evaluate Student Answer with Real Backend AI
                     </button>
                   </div>
                 </div>
@@ -1133,7 +1334,7 @@ export function LiveDemoSandbox() {
                 onClick={() => setShowQuestionModal(false)}
                 className="p-1 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground"
               >
-                <X className="h-4 w-4" />
+                <X className="h-5 w-5" />
               </button>
             </div>
 
@@ -1256,7 +1457,7 @@ export function LiveDemoSandbox() {
       )}
 
       {/* MODAL 2: Fullscreen Answer Sheet Photo Zoom Modal */}
-      {showImageZoomModal && (
+      {showImageZoomModal && activeImageUrl && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/90 backdrop-blur-md animate-in fade-in">
           <div className="relative max-w-4xl w-full max-h-[95vh] rounded-3xl overflow-hidden border border-border bg-card p-3 shadow-2xl flex flex-col">
             <div className="flex items-center justify-between p-2 border-b border-border">
@@ -1280,6 +1481,63 @@ export function LiveDemoSandbox() {
             </div>
             <div className="p-2 text-center text-xs text-muted-foreground">
               Tip: AI Vision OCR analyzes ruled lines, marginal notes, formulas, and teacher ink strokes directly from this image.
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 3: Gemini API Key Modal */}
+      {showApiKeyModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in">
+          <div className="relative max-w-md w-full rounded-3xl border border-border bg-card p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-border">
+              <div className="flex items-center gap-2">
+                <Key className="h-4 w-4 text-emerald-600" />
+                <h3 className="font-extrabold text-foreground text-sm">
+                  Google Gemini Cloud Vision API Key
+                </h3>
+              </div>
+              <button
+                onClick={() => setShowApiKeyModal(false)}
+                className="p-1 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              KhataAI operates in zero-config mode by default using its intelligent handwriting and rubric evaluation core. If you wish to connect your own free Google Gemini API key for live multimodal cloud vision, enter it below:
+            </p>
+
+            <div className="space-y-1.5 text-xs">
+              <label className="font-bold text-foreground">Google Gemini API Key:</label>
+              <input
+                type="password"
+                value={apiKeyInput}
+                onChange={(e) => setApiKeyInput(e.target.value)}
+                placeholder="AIzaSy..."
+                className="w-full px-3 py-2 rounded-xl border border-border bg-background font-mono text-xs"
+              />
+              <p className="text-[10px] text-muted-foreground">
+                Get a free key from <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="text-emerald-600 underline">Google AI Studio</a>. Keys are never saved permanently and only used for your evaluation session.
+              </p>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-border">
+              {apiKeyInput && (
+                <button
+                  onClick={() => setApiKeyInput("")}
+                  className="px-3 py-1.5 rounded-xl border border-border text-xs text-muted-foreground hover:text-destructive"
+                >
+                  Clear Key
+                </button>
+              )}
+              <button
+                onClick={() => setShowApiKeyModal(false)}
+                className="px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md"
+              >
+                Done
+              </button>
             </div>
           </div>
         </div>
