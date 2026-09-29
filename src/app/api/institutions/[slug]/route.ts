@@ -12,13 +12,13 @@ export async function GET(req: Request, { params }: { params: Promise<{ slug: st
 
   const cookieStore = await cookies();
   const sessionUserId = cookieStore.get("khata_user_session")?.value;
-  const currentUser = store.getCurrentUser();
+  const loggedInUser = sessionUserId ? store.getUserById(sessionUserId) : store.getCurrentUser();
 
   const isOwner =
-    currentUser.role === "ADMIN" ||
-    currentUser.role === "TEACHER" ||
-    currentUser.id === institution.userId ||
-    sessionUserId === institution.userId;
+    !!loggedInUser &&
+    (loggedInUser.role === "ADMIN" ||
+      loggedInUser.id === institution.userId ||
+      sessionUserId === institution.userId);
 
   // Get batches and enrolled students for this institution
   const batches = store.getBatches(slug);
@@ -45,6 +45,6 @@ export async function GET(req: Request, { params }: { params: Promise<{ slug: st
     batches,
     enrolledStudents,
     isOwner,
-    currentUser,
+    currentUser: loggedInUser,
   });
 }

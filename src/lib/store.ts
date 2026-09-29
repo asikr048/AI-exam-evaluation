@@ -175,7 +175,7 @@ export const SEED_INSTITUTIONS: InstitutionProfile[] = [
 class DataStore {
   private static instance: DataStore;
   private users: User[] = [...DEMO_USERS];
-  private currentUser: User = DEMO_USERS[1]; // default to Tahmid Hasan (Student) or Teacher
+  private currentUser: User | null = null; // null by default - visitor must log in or choose persona
   private exams: Exam[] = [...SEED_EXAMS];
   private submissions: Submission[] = [...SEED_SUBMISSIONS];
   private institutions: InstitutionProfile[] = [...SEED_INSTITUTIONS];
@@ -193,17 +193,25 @@ class DataStore {
   }
 
   // User management
-  public getCurrentUser(): User {
+  public getCurrentUser(): User | null {
     return this.currentUser;
   }
 
-  public setCurrentUser(userOrRole: User | "STUDENT" | "TEACHER" | "ADMIN"): void {
+  public setCurrentUser(userOrRole: User | "STUDENT" | "TEACHER" | "ADMIN" | null): void {
+    if (!userOrRole) {
+      this.currentUser = null;
+      return;
+    }
     if (typeof userOrRole === "string") {
       const found = this.users.find((u) => u.role === userOrRole);
       if (found) this.currentUser = found;
     } else {
       this.currentUser = userOrRole;
     }
+  }
+
+  public getUserById(id: string): User | undefined {
+    return this.users.find((u) => u.id === id);
   }
 
   public getAllUsers(): User[] {
@@ -317,13 +325,13 @@ class DataStore {
 
     const newInst: InstitutionProfile = {
       id: `inst_${Date.now()}`,
-      userId: this.currentUser.id,
+      userId: profileData.userId || this.currentUser?.id || "usr_teacher_01",
       name: profileData.name,
       nameBn: profileData.nameBn,
       slug: profileData.slug,
       type: profileData.type || "COACHING",
       description: profileData.description || "",
-      contactEmail: profileData.contactEmail || this.currentUser.email,
+      contactEmail: profileData.contactEmail || this.currentUser?.email || "info@khata.ai",
       contactPhone: profileData.contactPhone || "+880 1700 000000",
       address: profileData.address || "Bangladesh",
       subscriptionPlan: profileData.subscriptionPlan || "FREE",

@@ -47,9 +47,30 @@ function NewExamForm() {
   const [selectedBatchId, setSelectedBatchId] = useState<string>("");
   const [copiedLink, setCopiedLink] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isOwner, setIsOwner] = useState(true);
+  const [instName, setInstName] = useState("");
+  const [permissionError, setPermissionError] = useState("");
 
   useEffect(() => {
     if (instSlug) {
+      fetch(`/api/institutions/${instSlug}`)
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.institution) {
+            setInstName(data.institution.name);
+          }
+          if (data.isOwner === false) {
+            setIsOwner(false);
+            setPermissionError(
+              `You are not the registered creator of "${data.institution?.name || instSlug}". Only the creator can publish exams in this institution.`
+            );
+          } else {
+            setIsOwner(true);
+            setPermissionError("");
+          }
+        })
+        .catch(() => {});
+
       fetch(`/api/institutions/${instSlug}/batches`)
         .then((r) => r.json())
         .then((data) => {
@@ -346,6 +367,11 @@ function NewExamForm() {
       return;
     }
 
+    if (!isOwner && instSlug) {
+      alert(permissionError || "Permission Denied: You cannot create exams in this institution because you are not its creator.");
+      return;
+    }
+
     setIsSubmitting(true);
     const totalMarks = questions.reduce((sum, q) => sum + q.marks, 0);
 
@@ -417,8 +443,8 @@ function NewExamForm() {
 
         <button
           onClick={handleSaveExam}
-          disabled={isSubmitting}
-          className="flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-xs sm:text-sm font-bold text-white shadow-md shadow-emerald-600/20 hover:bg-emerald-700 transition-all disabled:opacity-60"
+          disabled={isSubmitting || (!isOwner && !!instSlug)}
+          className="flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-xs sm:text-sm font-bold text-white shadow-md shadow-emerald-600/20 hover:bg-emerald-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isSubmitting ? (
             "Publishing..."
@@ -431,8 +457,34 @@ function NewExamForm() {
         </button>
       </div>
 
-      {/* Institution Association Banner if created from an Institution Portal */}
-      {instSlug && (
+      {/* Permission Warning if not the creator */}
+      {!isOwner && instSlug && (
+        <div className="p-5 rounded-2xl bg-destructive/10 border border-destructive/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <h4 className="font-extrabold text-sm text-destructive flex items-center gap-2">
+              <Lock className="h-4 w-4" /> Permission Denied for this Institution
+            </h4>
+            <p className="text-xs text-muted-foreground">{permissionError}</p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Link
+              href="/teacher/exams/new"
+              className="px-3.5 py-2 rounded-xl border border-border bg-card hover:bg-accent text-xs font-bold text-foreground transition-all"
+            >
+              Create Independent Exam
+            </Link>
+            <Link
+              href="/profile?tab=institutions"
+              className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm transition-all"
+            >
+              My Institutions
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {/* Institution Association Banner if created from an Institution Portal and user is owner */}
+      {isOwner && instSlug && (
         <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold">

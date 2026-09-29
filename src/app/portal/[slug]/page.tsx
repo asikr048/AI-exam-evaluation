@@ -418,7 +418,7 @@ export default function InstitutionPortalPage({
       </div>
 
       {/* Institution Creator & Admin Action Bar */}
-      {(isOwner || currentUser?.role === "ADMIN" || currentUser?.role === "TEACHER") && (
+      {(isOwner || currentUser?.role === "ADMIN") && (
         <div className="container mx-auto max-w-6xl px-4 sm:px-6 -mt-5">
           <div className="p-4 rounded-2xl bg-card border border-emerald-300 dark:border-emerald-800 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-3">
             <div className="flex items-center gap-3">
@@ -826,12 +826,14 @@ export default function InstitutionPortalPage({
               </div>
 
               <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setShowBatchModal(true)}
-                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm"
-                >
-                  <PlusCircle className="h-4 w-4" /> + Create Batch
-                </button>
+                {(isOwner || currentUser?.role === "ADMIN") && (
+                  <button
+                    onClick={() => setShowBatchModal(true)}
+                    className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm"
+                  >
+                    <PlusCircle className="h-4 w-4" /> + Create Batch
+                  </button>
+                )}
                 <button
                   onClick={() => setShowEnrollModal(true)}
                   className="px-4 py-2 rounded-xl border border-border bg-card hover:bg-accent text-xs font-bold text-foreground flex items-center gap-1.5"

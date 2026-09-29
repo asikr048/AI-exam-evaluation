@@ -7,10 +7,11 @@ export async function GET() {
   const session = cookieStore.get("khata_admin_session");
   const currentUser = store.getCurrentUser();
 
-  const isAuthenticated = session?.value === "authenticated_admin" || currentUser.role === "ADMIN";
+  const isAuthenticated = session?.value === "authenticated_admin" || currentUser?.role === "ADMIN";
+  const adminUser = store.getAllUsers().find((u) => u.role === "ADMIN");
 
   return NextResponse.json({
     authenticated: isAuthenticated,
-    user: isAuthenticated ? currentUser : null,
+    user: isAuthenticated ? (currentUser || adminUser || null) : null,
   });
 }

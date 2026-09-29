@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { store } from "@/lib/store";
 
 export async function GET(
@@ -22,6 +23,26 @@ export async function POST(
       return NextResponse.json(
         { success: false, error: "Batch name is required" },
         { status: 400 }
+      );
+    }
+
+    const cookieStore = await cookies();
+    const sessionUserId = cookieStore.get("khata_user_session")?.value;
+    const currentUser = sessionUserId ? store.getUserById(sessionUserId) : store.getCurrentUser();
+    const institution = store.getInstitutionBySlug(slug);
+
+    if (!institution) {
+      return NextResponse.json({ success: false, error: "Institution not found" }, { status: 404 });
+    }
+
+    const isOwner = !!currentUser && (currentUser.role === "ADMIN" || institution.userId === currentUser.id);
+    if (!isOwner) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Unauthorized: Only the creator of '${institution.name}' can create batches.`,
+        },
+        { status: 403 }
       );
     }
 

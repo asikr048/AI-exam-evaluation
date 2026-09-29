@@ -19,15 +19,21 @@ import {
   Clock,
   Sparkles,
   BookOpen,
+  LogOut,
+  ShieldCheck,
+  Lock,
+  Layers,
+  FileText,
 } from "lucide-react";
-import { InstitutionProfile, Submission, User } from "@/lib/types";
+import { InstitutionProfile, Submission, User, Exam } from "@/lib/types";
 
 export default function UserProfilePage() {
   const router = useRouter();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
-  const [institutions, setInstitutions] = useState<InstitutionProfile[]>([]);
-  const [activeTab, setActiveTab] = useState<"history" | "institutions">("history");
+  const [allInstitutions, setAllInstitutions] = useState<InstitutionProfile[]>([]);
+  const [createdExams, setCreatedExams] = useState<Exam[]>([]);
+  const [activeTab, setActiveTab] = useState<"exams" | "institutions" | "account">("exams");
   const [loading, setLoading] = useState(true);
 
   // New Institution Form State
@@ -42,8 +48,11 @@ export default function UserProfilePage() {
   useEffect(() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
-      if (params.get("tab") === "institutions") {
+      const tabParam = params.get("tab");
+      if (tabParam === "institutions") {
         setActiveTab("institutions");
+      } else if (tabParam === "account") {
+        setActiveTab("account");
       }
     }
 
@@ -51,13 +60,20 @@ export default function UserProfilePage() {
       fetch("/api/auth/current-user").then((r) => r.json()),
       fetch("/api/submissions/history").then((r) => r.json()),
       fetch("/api/institutions").then((r) => r.json()),
+      fetch("/api/exams").then((r) => r.json()),
     ])
-      .then(([userData, subData, instData]) => {
-        if (userData.currentUser) setCurrentUser(userData.currentUser);
-        if (subData.submissions) setSubmissions(subData.submissions);
+      .then(([userData, subData, instData, examsData]) => {
+        if (userData.currentUser) {
+          setCurrentUser(userData.currentUser);
+        }
+        if (subData.submissions) {
+          setSubmissions(subData.submissions);
+        }
         if (instData.institutions) {
-          // If user has institutions, or show all for teachers
-          setInstitutions(instData.institutions);
+          setAllInstitutions(instData.institutions);
+        }
+        if (examsData.exams) {
+          setCreatedExams(examsData.exams);
         }
       })
       .finally(() => setLoading(false));
@@ -72,36 +88,49 @@ export default function UserProfilePage() {
 
   const handleCreateInstitution = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!instName) return;
+    if (!instName.trim()) return;
 
     setIsCreatingInst(true);
-    const slug = instSlug || instName.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    const slug = (instSlug || instName)
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "");
 
     try {
       const res = await fetch("/api/institutions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: instName,
+          name: instName.trim(),
           slug,
           type: instType,
-          description: instDescription,
+          description: instDescription.trim(),
           contactEmail: currentUser?.email || "info@khata.ai",
+          userId: currentUser?.id,
         }),
       });
       const data = await res.json();
       if (data.institution) {
-        setInstitutions([data.institution, ...institutions]);
+        setAllInstitutions([data.institution, ...allInstitutions]);
         setShowAddInst(false);
         setInstName("");
         setInstSlug("");
         setInstDescription("");
+      } else {
+        alert(data.error || "Failed to create institution.");
       }
     } catch (err) {
       console.error(err);
+      alert("An error occurred while creating institution.");
     } finally {
       setIsCreatingInst(false);
     }
+  };
+
+  const handleLogout = async () => {
+    await fetch("/api/auth/logout", { method: "POST" });
+    router.push("/");
+    router.refresh();
   };
 
   if (loading) {
@@ -111,6 +140,48 @@ export default function UserProfilePage() {
       </div>
     );
   }
+
+  // Not Logged In View
+  if (!currentUser) {
+    return (
+      <div className="container mx-auto max-w-md px-4 py-16 text-center space-y-6">
+        <div className="h-16 w-16 rounded-3xl bg-muted border border-border flex items-center justify-center mx-auto text-muted-foreground shadow-sm">
+          <UserIcon className="h-8 w-8" />
+        </div>
+        <div className="space-y-2">
+          <h1 className="text-2xl font-black text-foreground">Sign In to View Your Profile</h1>
+          <p className="text-xs text-muted-foreground">
+            Sign in to access your registered institutions, view your exam records, and create tests.
+          </p>
+        </div>
+        <div className="flex flex-col sm:flex-row gap-3 justify-center">
+          <Link
+            href="/login"
+            className="px-5 py-2.5 rounded-xl border border-border bg-card hover:bg-accent text-xs font-bold text-foreground transition-all"
+          >
+            Sign In
+          </Link>
+          <Link
+            href="/signup"
+            className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-600/20 transition-all"
+          >
+            Create Free Account
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  // Filter institutions owned by this user (or all if ADMIN)
+  const isSuperAdmin = currentUser.role === "ADMIN";
+  const myInstitutions = isSuperAdmin
+    ? allInstitutions
+    : allInstitutions.filter((i) => i.userId === currentUser.id);
+
+  // Filter exams created by this user
+  const myCreatedExams = isSuperAdmin
+    ? createdExams
+    : createdExams.filter((e) => e.creatorId === currentUser.id);
 
   // Calculate stats
   const evaluatedCount = submissions.filter((s) => s.status === "EVALUATED").length;
@@ -128,24 +199,24 @@ export default function UserProfilePage() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
           <div className="flex items-center gap-4">
             <div className="h-16 w-16 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-500 text-white flex items-center justify-center font-black text-2xl shadow-md shadow-emerald-600/20">
-              {currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : "U"}
+              {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : "U"}
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-xl sm:text-2xl font-black text-foreground">
-                  {currentUser?.name || "Account Profile"}
+                  {currentUser.name}
                 </h1>
                 <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                  {currentUser?.role === "ADMIN"
+                  {currentUser.role === "ADMIN"
                     ? "⚡ Super Admin"
-                    : currentUser?.role === "TEACHER"
+                    : currentUser.role === "TEACHER"
                     ? "🏛️ Institution / Educator"
                     : "🎓 Student"}
                 </span>
               </div>
               <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-2">
-                <span>{currentUser?.email}</span>
-                {currentUser?.institution && (
+                <span>{currentUser.email}</span>
+                {currentUser.institution && (
                   <>
                     <span>•</span>
                     <span>{currentUser.institution}</span>
@@ -156,12 +227,33 @@ export default function UserProfilePage() {
           </div>
 
           <div className="flex items-center gap-2">
-            <Link
-              href="/student"
-              className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-600/20 transition-all flex items-center gap-1.5"
+            {currentUser.role === "TEACHER" ? (
+              <button
+                onClick={() => {
+                  setActiveTab("institutions");
+                  setShowAddInst(true);
+                }}
+                className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-600/20 transition-all flex items-center gap-1.5"
+              >
+                <PlusCircle className="h-3.5 w-3.5" />
+                + Register Institution
+              </button>
+            ) : (
+              <Link
+                href="/student"
+                className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-600/20 transition-all flex items-center gap-1.5"
+              >
+                <BookOpen className="h-3.5 w-3.5" /> Take Public Exam
+              </Link>
+            )}
+
+            <button
+              onClick={handleLogout}
+              className="p-2 rounded-xl border border-border hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors text-xs font-semibold"
+              title="Sign Out"
             >
-              <BookOpen className="h-3.5 w-3.5" /> Take Public Exam
-            </Link>
+              <LogOut className="h-4 w-4" />
+            </button>
           </div>
         </div>
 
@@ -169,21 +261,27 @@ export default function UserProfilePage() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4 border-t border-border">
           <div className="p-3.5 rounded-2xl bg-muted/40 border border-border">
             <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-              Exams Completed
+              {currentUser.role === "TEACHER" ? "Institutions Owned" : "Exams Completed"}
             </span>
-            <div className="text-xl font-black text-foreground mt-1">{submissions.length}</div>
+            <div className="text-xl font-black text-foreground mt-1">
+              {currentUser.role === "TEACHER" ? myInstitutions.length : submissions.length}
+            </div>
           </div>
           <div className="p-3.5 rounded-2xl bg-muted/40 border border-border">
             <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-              Average Score
+              {currentUser.role === "TEACHER" ? "Exams Created" : "Average Score"}
             </span>
-            <div className="text-xl font-black text-emerald-600 mt-1">{avgScore}%</div>
+            <div className="text-xl font-black text-emerald-600 mt-1">
+              {currentUser.role === "TEACHER" ? myCreatedExams.length : `${avgScore}%`}
+            </div>
           </div>
           <div className="p-3.5 rounded-2xl bg-muted/40 border border-border">
             <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-              Overall Grade
+              Overall Status
             </span>
-            <div className="text-xl font-black text-foreground mt-1">A+ (GPA 5.00)</div>
+            <div className="text-xl font-black text-foreground mt-1">
+              {currentUser.role === "ADMIN" ? "Super Admin" : "Active Member"}
+            </div>
           </div>
           <div className="p-3.5 rounded-2xl bg-muted/40 border border-border">
             <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
@@ -197,15 +295,15 @@ export default function UserProfilePage() {
       {/* Navigation Tabs */}
       <div className="flex items-center gap-2 border-b border-border pb-1">
         <button
-          onClick={() => setActiveTab("history")}
+          onClick={() => setActiveTab("exams")}
           className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all ${
-            activeTab === "history"
+            activeTab === "exams"
               ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/20"
               : "text-muted-foreground hover:text-foreground hover:bg-accent"
           }`}
         >
-          <FileCheck2 className="h-4 w-4" />
-          My Exam History ({submissions.length})
+          <BookOpen className="h-4 w-4" />
+          My Exams ({currentUser.role === "TEACHER" ? myCreatedExams.length : submissions.length})
         </button>
 
         <button
@@ -217,100 +315,218 @@ export default function UserProfilePage() {
           }`}
         >
           <Building2 className="h-4 w-4" />
-          My Institutions & Portals ({institutions.length})
+          My Institutions ({myInstitutions.length})
+        </button>
+
+        <button
+          onClick={() => setActiveTab("account")}
+          className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all ${
+            activeTab === "account"
+              ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/20"
+              : "text-muted-foreground hover:text-foreground hover:bg-accent"
+          }`}
+        >
+          <UserIcon className="h-4 w-4" />
+          Account & Settings
         </button>
       </div>
 
-      {/* Tab 1: Exam History */}
-      {activeTab === "history" && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-base font-extrabold text-foreground">Exam Performance & Evaluated Scripts</h2>
-              <p className="text-xs text-muted-foreground">
-                All submitted tests with question-by-question scoring and AI feedback.
-              </p>
-            </div>
-            <Link href="/student" className="text-xs font-bold text-emerald-600 hover:text-emerald-700">
-              Browse More Public Exams →
-            </Link>
-          </div>
+      {/* Tab 1: My Exams */}
+      {activeTab === "exams" && (
+        <div className="space-y-6">
+          {currentUser.role === "TEACHER" || isSuperAdmin ? (
+            /* Teacher / Admin Exam View */
+            <div className="space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-base font-extrabold text-foreground">Exams Created by You</h2>
+                  <p className="text-xs text-muted-foreground">
+                    Exams you created with custom rubrics and points. Only you can modify or evaluate papers under your institution.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Link
+                    href="/teacher/exams/new"
+                    className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-600/20 transition-all flex items-center gap-1.5"
+                  >
+                    <PlusCircle className="h-3.5 w-3.5" /> + Create New Exam
+                  </Link>
+                </div>
+              </div>
 
-          {submissions.length === 0 ? (
-            <div className="p-12 rounded-3xl border border-dashed border-border bg-card text-center space-y-3">
-              <FileCheck2 className="h-10 w-10 text-muted-foreground mx-auto" />
-              <h3 className="font-bold text-sm text-foreground">No Exam History Yet</h3>
-              <p className="text-xs text-muted-foreground max-w-sm mx-auto">
-                You haven't submitted any answer sheets yet. Head over to the Student Arena to take an official model test.
-              </p>
-              <Link
-                href="/student"
-                className="inline-block px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold"
-              >
-                Go to Student Arena
-              </Link>
+              {myCreatedExams.length === 0 ? (
+                <div className="p-12 rounded-3xl border border-dashed border-border bg-card text-center space-y-3">
+                  <BookOpen className="h-10 w-10 text-muted-foreground mx-auto" />
+                  <h3 className="font-bold text-sm text-foreground">No Exams Created Yet</h3>
+                  <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+                    You haven't created any exams yet. Start by creating an exam with custom rubric points for your institution.
+                  </p>
+                  <Link
+                    href="/teacher/exams/new"
+                    className="inline-block px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold"
+                  >
+                    + Create Your First Exam
+                  </Link>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {myCreatedExams.map((exam) => (
+                    <div
+                      key={exam.id}
+                      className="p-5 rounded-2xl border border-border bg-card shadow-sm hover:border-emerald-300 transition-all space-y-3 flex flex-col justify-between"
+                    >
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-200">
+                            {exam.curriculumCode}
+                          </span>
+                          <span
+                            className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                              exam.isPrivate
+                                ? "bg-amber-500/10 text-amber-600 border border-amber-500/30"
+                                : "bg-blue-500/10 text-blue-600 border border-blue-500/30"
+                            }`}
+                          >
+                            {exam.isPrivate ? "🔒 Private Link" : "🌐 Public"}
+                          </span>
+                        </div>
+
+                        <h3 className="font-bold text-sm text-foreground">{exam.title}</h3>
+                        <p className="text-xs text-muted-foreground">
+                          Subject: <strong className="text-foreground">{exam.subject}</strong> • Marks:{" "}
+                          <strong className="text-foreground">{exam.totalMarks}</strong> • Duration:{" "}
+                          <strong className="text-foreground">{exam.durationMinutes}m</strong>
+                        </p>
+                        {exam.institutionSlug && (
+                          <div className="text-[11px] text-emerald-600 font-semibold flex items-center gap-1">
+                            <Building2 className="h-3 w-3" />
+                            <span>Institution: /portal/{exam.institutionSlug}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="pt-3 border-t border-border flex items-center justify-between text-xs">
+                        <Link
+                          href={`/exam/${exam.accessCode}${exam.privateAccessToken ? `?privateKey=${exam.privateAccessToken}` : ""}`}
+                          className="text-xs font-bold text-emerald-600 hover:text-emerald-700 flex items-center gap-1"
+                        >
+                          <span>Exam View</span>
+                          <ExternalLink className="h-3 w-3" />
+                        </Link>
+
+                        {exam.institutionSlug && (
+                          <Link
+                            href={`/portal/${exam.institutionSlug}`}
+                            className="px-3 py-1.5 rounded-lg border border-border bg-card hover:bg-accent text-xs font-bold text-foreground"
+                          >
+                            Manage in Portal
+                          </Link>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           ) : (
-            <div className="space-y-3">
-              {submissions.map((sub) => (
-                <div
-                  key={sub.id}
-                  className="p-5 rounded-2xl border border-border bg-card shadow-sm hover:border-emerald-300 transition-all space-y-3"
-                >
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <span className="px-2 py-0.5 rounded text-[11px] font-extrabold bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                        {sub.curriculumCode}
-                      </span>
-                      <h3 className="font-bold text-sm text-foreground">{sub.examTitle}</h3>
-                    </div>
-                    <span className="text-[11px] text-muted-foreground flex items-center gap-1">
-                      <Calendar className="h-3 w-3" /> {new Date(sub.submittedAt).toLocaleDateString()}
-                    </span>
-                  </div>
-
-                  <div className="flex flex-wrap items-center justify-between text-xs pt-2 border-t border-border">
-                    <div className="flex items-center gap-4 text-muted-foreground">
-                      <span>
-                        Subject: <strong className="text-foreground">{sub.subject}</strong>
-                      </span>
-                      <span>
-                        Score:{" "}
-                        <strong className="text-foreground font-mono">
-                          {sub.evaluation ? `${sub.evaluation.totalScore}/${sub.evaluation.maxScore}` : "Pending"}
-                        </strong>
-                      </span>
-                      <span>
-                        Grade:{" "}
-                        <span className="px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950 font-bold text-emerald-700 dark:text-emerald-300">
-                          {sub.evaluation?.grade || "A+"}
-                        </span>
-                      </span>
-                    </div>
-
-                    <Link
-                      href={`/student/results/${sub.id}`}
-                      className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all"
-                    >
-                      <span>View Graded Script</span>
-                      <ArrowRight className="h-3 w-3" />
-                    </Link>
-                  </div>
+            /* Student Exam Performance View */
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-base font-extrabold text-foreground">Exam Performance & Evaluated Scripts</h2>
+                  <p className="text-xs text-muted-foreground">
+                    All submitted tests with question-by-question scoring and AI feedback.
+                  </p>
                 </div>
-              ))}
+                <Link href="/student" className="text-xs font-bold text-emerald-600 hover:text-emerald-700">
+                  Browse More Public Exams →
+                </Link>
+              </div>
+
+              {submissions.length === 0 ? (
+                <div className="p-12 rounded-3xl border border-dashed border-border bg-card text-center space-y-3">
+                  <FileCheck2 className="h-10 w-10 text-muted-foreground mx-auto" />
+                  <h3 className="font-bold text-sm text-foreground">No Exam Submissions Yet</h3>
+                  <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+                    You haven't submitted any answer sheets yet. Head over to the Student Arena to take an official test or participate via an institution portal.
+                  </p>
+                  <Link
+                    href="/student"
+                    className="inline-block px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold"
+                  >
+                    Go to Student Arena
+                  </Link>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {submissions.map((sub) => (
+                    <div
+                      key={sub.id}
+                      className="p-5 rounded-2xl border border-border bg-card shadow-sm hover:border-emerald-300 transition-all space-y-3"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="px-2 py-0.5 rounded text-[11px] font-extrabold bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                            {sub.curriculumCode}
+                          </span>
+                          <h3 className="font-bold text-sm text-foreground">{sub.examTitle}</h3>
+                        </div>
+                        <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                          <Calendar className="h-3 w-3" /> {new Date(sub.submittedAt).toLocaleDateString()}
+                        </span>
+                      </div>
+
+                      <div className="flex flex-wrap items-center justify-between text-xs pt-2 border-t border-border">
+                        <div className="flex items-center gap-4 text-muted-foreground">
+                          <span>
+                            Subject: <strong className="text-foreground">{sub.subject}</strong>
+                          </span>
+                          <span>
+                            Score:{" "}
+                            <strong className="text-foreground font-mono">
+                              {sub.evaluation ? `${sub.evaluation.totalScore}/${sub.evaluation.maxScore}` : "Pending"}
+                            </strong>
+                          </span>
+                          <span>
+                            Grade:{" "}
+                            <span className="px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950 font-bold text-emerald-700 dark:text-emerald-300">
+                              {sub.evaluation?.grade || "A+"}
+                            </span>
+                          </span>
+                        </div>
+
+                        <Link
+                          href={`/student/results/${sub.id}`}
+                          className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all"
+                        >
+                          <span>View Graded Script</span>
+                          <ArrowRight className="h-3 w-3" />
+                        </Link>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
       )}
 
-      {/* Tab 2: Institutions & Portals */}
+      {/* Tab 2: My Institutions */}
       {activeTab === "institutions" && (
         <div className="space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <h2 className="text-base font-extrabold text-foreground">Coaching & Institution Portals</h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-base font-extrabold text-foreground">My Registered Institutions</h2>
+                {isSuperAdmin && (
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-600 border border-amber-500/30">
+                    Super Admin View (All Institutions)
+                  </span>
+                )}
+              </div>
               <p className="text-xs text-muted-foreground">
-                Manage your institution profile, custom student portal URL, and shareable exam links.
+                Institutions you created. Only you can create exams and batches in your registered institutions.
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -321,12 +537,6 @@ export default function UserProfilePage() {
                 <PlusCircle className="h-4 w-4" />
                 {showAddInst ? "Cancel" : "Add Institution"}
               </button>
-              <Link
-                href="/teacher/exams/new"
-                className="px-4 py-2 rounded-xl border border-border bg-card hover:bg-accent text-xs font-bold text-foreground transition-all"
-              >
-                + Create Exam
-              </Link>
             </div>
           </div>
 
@@ -354,7 +564,7 @@ export default function UserProfilePage() {
                         setInstSlug(e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, "-"));
                       }
                     }}
-                    placeholder="e.g. Udvash Academic Care / Notre Dame College"
+                    placeholder="e.g. Apex Academy / Sunrise College"
                     className="w-full px-3.5 py-2 rounded-xl border border-border bg-background text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                   />
                 </div>
@@ -385,7 +595,7 @@ export default function UserProfilePage() {
                       required
                       value={instSlug}
                       onChange={(e) => setInstSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-_]/g, ""))}
-                      placeholder="udvash-academic"
+                      placeholder="apex-academy"
                       className="w-full px-3.5 py-2 rounded-r-xl border border-border bg-background text-sm font-mono focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                     />
                   </div>
@@ -423,64 +633,137 @@ export default function UserProfilePage() {
           )}
 
           {/* List of Registered Institutions */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {institutions.map((inst) => (
-              <div
-                key={inst.id}
-                className="p-5 rounded-2xl border border-border bg-card shadow-sm hover:border-emerald-300 transition-all space-y-3"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="px-2 py-0.5 rounded text-[10px] font-black bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                    {inst.type}
-                  </span>
-                  <span className="text-[11px] text-muted-foreground font-mono">
-                    /portal/{inst.slug}
-                  </span>
-                </div>
-
-                <div>
-                  <h3 className="font-bold text-sm text-foreground">{inst.name}</h3>
-                  <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{inst.description}</p>
-                </div>
-
-                <div className="p-2.5 rounded-xl bg-muted/40 border border-border flex items-center justify-between text-xs">
-                  <span className="text-muted-foreground truncate">
-                    khata.ai/portal/<strong>{inst.slug}</strong>
-                  </span>
-                  <button
-                    onClick={() => handleCopy(inst.slug)}
-                    className="px-2.5 py-1 rounded-lg bg-card border border-border hover:bg-accent font-semibold flex items-center gap-1 text-[11px]"
-                  >
-                    {copiedLink === inst.slug ? (
-                      <>
-                        <CheckCircle2 className="h-3 w-3 text-emerald-600" /> Copied
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="h-3 w-3" /> Copy Link
-                      </>
-                    )}
-                  </button>
-                </div>
-
-                <div className="flex items-center justify-between pt-2 border-t border-border text-xs">
-                  <Link
-                    href={`/portal/${inst.slug}`}
-                    className="text-xs font-bold text-emerald-600 hover:text-emerald-700 flex items-center gap-1"
-                  >
-                    <span>View Student Portal</span>
-                    <ExternalLink className="h-3 w-3" />
-                  </Link>
-
-                  <Link
-                    href={`/teacher/exams/new?institutionSlug=${inst.slug}`}
-                    className="px-3 py-1 rounded-lg bg-emerald-600 text-white font-bold text-xs hover:bg-emerald-700"
-                  >
-                    + Create Exam
-                  </Link>
-                </div>
+          {myInstitutions.length === 0 ? (
+            <div className="p-12 rounded-3xl border border-dashed border-border bg-card text-center space-y-4">
+              <Building2 className="h-10 w-10 text-muted-foreground mx-auto" />
+              <div className="space-y-1">
+                <h3 className="font-bold text-sm text-foreground">No Institutions Registered Under Your Account</h3>
+                <p className="text-xs text-muted-foreground max-w-md mx-auto">
+                  When you register an institution, you become its exclusive creator. Only you can create exams and batches in that institution.
+                </p>
               </div>
-            ))}
+              <button
+                onClick={() => setShowAddInst(true)}
+                className="px-5 py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-bold shadow-md shadow-emerald-600/20"
+              >
+                + Register Your Institution Now
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {myInstitutions.map((inst) => (
+                <div
+                  key={inst.id}
+                  className="p-5 rounded-2xl border border-border bg-card shadow-sm hover:border-emerald-300 transition-all space-y-3"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="px-2 py-0.5 rounded text-[10px] font-black bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                      {inst.type}
+                    </span>
+                    <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-800 flex items-center gap-1">
+                      <ShieldCheck className="h-3 w-3" /> Managed by You
+                    </span>
+                  </div>
+
+                  <div>
+                    <h3 className="font-bold text-sm text-foreground">{inst.name}</h3>
+                    <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{inst.description}</p>
+                  </div>
+
+                  <div className="p-2.5 rounded-xl bg-muted/40 border border-border flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground truncate">
+                      khata.ai/portal/<strong>{inst.slug}</strong>
+                    </span>
+                    <button
+                      onClick={() => handleCopy(inst.slug)}
+                      className="px-2.5 py-1 rounded-lg bg-card border border-border hover:bg-accent font-semibold flex items-center gap-1 text-[11px]"
+                    >
+                      {copiedLink === inst.slug ? (
+                        <>
+                          <CheckCircle2 className="h-3 w-3 text-emerald-600" /> Copied
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="h-3 w-3" /> Copy Link
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2 border-t border-border text-xs">
+                    <Link
+                      href={`/portal/${inst.slug}`}
+                      className="text-xs font-bold text-emerald-600 hover:text-emerald-700 flex items-center gap-1"
+                    >
+                      <span>Manage Portal</span>
+                      <ExternalLink className="h-3 w-3" />
+                    </Link>
+
+                    <Link
+                      href={`/teacher/exams/new?institutionSlug=${inst.slug}`}
+                      className="px-3.5 py-1.5 rounded-xl bg-emerald-600 text-white font-bold text-xs hover:bg-emerald-700 shadow-sm"
+                    >
+                      + Create Exam
+                    </Link>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Tab 3: Account & Settings */}
+      {activeTab === "account" && (
+        <div className="space-y-6 max-w-2xl">
+          <div className="p-6 rounded-3xl border border-border bg-card space-y-5 shadow-sm">
+            <h2 className="text-base font-extrabold text-foreground flex items-center gap-2">
+              <UserIcon className="h-4 w-4 text-emerald-600" />
+              Account Information
+            </h2>
+
+            <div className="space-y-4 text-xs">
+              <div className="flex justify-between py-2 border-b border-border">
+                <span className="text-muted-foreground">Full Name:</span>
+                <span className="font-bold text-foreground">{currentUser.name}</span>
+              </div>
+              <div className="flex justify-between py-2 border-b border-border">
+                <span className="text-muted-foreground">Email Address:</span>
+                <span className="font-bold text-foreground">{currentUser.email}</span>
+              </div>
+              <div className="flex justify-between py-2 border-b border-border">
+                <span className="text-muted-foreground">Account Role:</span>
+                <span className="font-bold text-emerald-600">
+                  {currentUser.role === "ADMIN"
+                    ? "Super Admin"
+                    : currentUser.role === "TEACHER"
+                    ? "Institution / Educator"
+                    : "Student"}
+                </span>
+              </div>
+              <div className="flex justify-between py-2 border-b border-border">
+                <span className="text-muted-foreground">Affiliation / Organization:</span>
+                <span className="font-bold text-foreground">
+                  {currentUser.institution || "Independent"}
+                </span>
+              </div>
+              <div className="flex justify-between py-2">
+                <span className="text-muted-foreground">Account ID:</span>
+                <span className="font-mono text-muted-foreground">{currentUser.id}</span>
+              </div>
+            </div>
+
+            <div className="pt-4 border-t border-border flex items-center justify-between">
+              <p className="text-[11px] text-muted-foreground">
+                KhataAI Secure Session Active
+              </p>
+              <button
+                onClick={handleLogout}
+                className="px-4 py-2 rounded-xl border border-destructive/30 text-destructive hover:bg-destructive/10 text-xs font-bold transition-all flex items-center gap-1.5"
+              >
+                <LogOut className="h-3.5 w-3.5" /> Sign Out
+              </button>
+            </div>
           </div>
         </div>
       )}

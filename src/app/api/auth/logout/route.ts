@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import { store } from "@/lib/store";
 
 export async function POST() {
-  // Revert persona to default student
-  store.setCurrentUser("STUDENT");
+  // Clear persona on logout
+  store.setCurrentUser(null);
 
   const response = NextResponse.json({
     success: true,

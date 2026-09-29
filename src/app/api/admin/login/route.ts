@@ -23,12 +23,23 @@ export async function POST(req: Request) {
 
     // Set persona to ADMIN in store
     store.setCurrentUser("ADMIN");
+    const adminUser = store.getCurrentUser();
 
     const response = NextResponse.json({
       success: true,
       message: "Admin authentication successful",
-      user: store.getCurrentUser(),
+      user: adminUser,
     });
+
+    if (adminUser) {
+      response.cookies.set("khata_user_session", adminUser.id, {
+        httpOnly: false,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: 60 * 60 * 24 * 7,
+        path: "/",
+      });
+    }
 
     // Set cookie for admin session
     response.cookies.set("khata_admin_session", "authenticated_admin", {

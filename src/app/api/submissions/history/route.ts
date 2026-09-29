@@ -9,25 +9,26 @@ export async function GET(req: Request) {
 
     const cookieStore = await cookies();
     const sessionUserId = cookieStore.get("khata_user_session")?.value;
-    const currentUser = store.getCurrentUser();
+    const user = sessionUserId ? store.getUserById(sessionUserId) : store.getCurrentUser();
+    const targetId = studentIdParam || user?.id || user?.email;
 
-    const targetId = studentIdParam || sessionUserId || currentUser.id;
-
-    // Fetch submissions matching studentId, email, or user
-    const submissions = store.getSubmissionsForStudent(targetId);
-
-    // If empty and current user is default demo student, also check studentEmail
-    if (submissions.length === 0 && currentUser.email) {
-      const emailMatches = store.getSubmissionsForStudent(currentUser.email);
+    if (!targetId) {
       return NextResponse.json({
         success: true,
-        submissions: emailMatches.length > 0 ? emailMatches : store.getSubmissions(),
+        submissions: [],
       });
+    }
+
+    // Fetch submissions matching studentId, email, or user
+    let submissions = store.getSubmissionsForStudent(targetId);
+
+    if (submissions.length === 0 && user?.email) {
+      submissions = store.getSubmissionsForStudent(user.email);
     }
 
     return NextResponse.json({
       success: true,
-      submissions: submissions.length > 0 ? submissions : store.getSubmissions(),
+      submissions,
     });
   } catch (err: any) {
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
