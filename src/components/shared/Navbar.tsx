@@ -17,6 +17,7 @@ import {
   Menu,
   X,
   CreditCard,
+  School,
 } from "lucide-react";
 
 export function Navbar() {
@@ -164,12 +165,21 @@ export function Navbar() {
                   </Link>
 
                   <Link
-                    href="/portal"
+                    href="/profile?tab=institutions"
                     onClick={() => setIsUserMenuOpen(false)}
                     className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-foreground hover:bg-accent transition-colors"
                   >
                     <Building2 className="h-4 w-4 text-emerald-600" />
-                    <span>Institution Portals</span>
+                    <span>My Institution Portals</span>
+                  </Link>
+
+                  <Link
+                    href="/portal"
+                    onClick={() => setIsUserMenuOpen(false)}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-foreground hover:bg-accent transition-colors"
+                  >
+                    <School className="h-4 w-4 text-emerald-600" />
+                    <span>Browse All Institutions</span>
                   </Link>
 
                   {currentUser.role === "ADMIN" && (

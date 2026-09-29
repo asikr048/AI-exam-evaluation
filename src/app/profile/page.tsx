@@ -40,6 +40,13 @@ export default function UserProfilePage() {
   const [copiedLink, setCopiedLink] = useState<string | null>(null);
 
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("tab") === "institutions") {
+        setActiveTab("institutions");
+      }
+    }
+
     Promise.all([
       fetch("/api/auth/current-user").then((r) => r.json()),
       fetch("/api/submissions/history").then((r) => r.json()),
@@ -466,7 +473,7 @@ export default function UserProfilePage() {
                   </Link>
 
                   <Link
-                    href="/teacher/exams/new"
+                    href={`/teacher/exams/new?institutionSlug=${inst.slug}`}
                     className="px-3 py-1 rounded-lg bg-emerald-600 text-white font-bold text-xs hover:bg-emerald-700"
                   >
                     + Create Exam
