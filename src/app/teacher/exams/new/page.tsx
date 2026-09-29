@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
@@ -18,9 +18,13 @@ import {
   FileText,
   Clock,
   ChevronDown,
+  Lock,
+  Globe,
+  Users,
+  Copy,
 } from "lucide-react";
 import { EXAM_TYPES } from "@/lib/constants";
-import { CQPart, Question, RubricPoint } from "@/lib/types";
+import { CQPart, Question, RubricPoint, Batch } from "@/lib/types";
 
 function NewExamForm() {
   const router = useRouter();
@@ -35,7 +39,25 @@ function NewExamForm() {
   const [accessCode, setAccessCode] = useState(
     instSlug ? `${instSlug.toUpperCase().slice(0, 4)}_${Math.floor(100 + Math.random() * 900)}` : "EXAM2026"
   );
+  const [isPrivate, setIsPrivate] = useState(false);
+  const [privateAccessToken, setPrivateAccessToken] = useState(
+    `PVT_${Math.random().toString(36).substring(2, 8).toUpperCase()}`
+  );
+  const [batches, setBatches] = useState<Batch[]>([]);
+  const [selectedBatchId, setSelectedBatchId] = useState<string>("");
+  const [copiedLink, setCopiedLink] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (instSlug) {
+      fetch(`/api/institutions/${instSlug}/batches`)
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.batches) setBatches(data.batches);
+        })
+        .catch(() => {});
+    }
+  }, [instSlug]);
 
   // Questions array
   const [questions, setQuestions] = useState<Question[]>([
@@ -327,6 +349,8 @@ function NewExamForm() {
     setIsSubmitting(true);
     const totalMarks = questions.reduce((sum, q) => sum + q.marks, 0);
 
+    const selectedBatch = batches.find((b) => b.id === selectedBatchId);
+
     try {
       const res = await fetch("/api/exams", {
         method: "POST",
@@ -341,6 +365,11 @@ function NewExamForm() {
           passMarkPercentage: 33,
           isOnline: true,
           isPublished: true,
+          isPublic: !isPrivate,
+          isPrivate,
+          privateAccessToken: isPrivate ? privateAccessToken : undefined,
+          batchId: selectedBatchId || undefined,
+          batchName: selectedBatch?.name,
           accessCode,
           institutionSlug: instSlug || undefined,
           questions,
@@ -507,6 +536,92 @@ function NewExamForm() {
               className="w-full px-3.5 py-2 rounded-xl border border-border bg-background text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none font-mono font-bold text-emerald-700 dark:text-emerald-400"
             />
           </div>
+
+          {batches.length > 0 && (
+            <div className="space-y-1.5 sm:col-span-2">
+              <label className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                <Users className="h-3.5 w-3.5 text-emerald-600" />
+                Assign to Institution Batch (ব্যাচ নির্বাচন):
+              </label>
+              <select
+                value={selectedBatchId}
+                onChange={(e) => setSelectedBatchId(e.target.value)}
+                className="w-full px-3.5 py-2 rounded-xl border border-border bg-background text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+              >
+                <option value="">All Batches & Open Students (উন্মুক্ত / সকল ব্যাচ)</option>
+                {batches.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.name} ({b.curriculumCode || "HSC"})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
+
+        {/* Exam Visibility & Privacy */}
+        <div className="p-4 rounded-xl border border-border bg-muted/20 space-y-3">
+          <label className="text-xs font-bold text-foreground block">Exam Visibility & Access Control:</label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div
+              onClick={() => setIsPrivate(false)}
+              className={`p-3 rounded-xl border cursor-pointer transition-all flex items-start gap-2.5 ${
+                !isPrivate
+                  ? "border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/30 ring-1 ring-emerald-500"
+                  : "border-border bg-background hover:bg-muted/40"
+              }`}
+            >
+              <Globe className={`h-4 w-4 mt-0.5 ${!isPrivate ? "text-emerald-600" : "text-muted-foreground"}`} />
+              <div>
+                <p className="text-xs font-bold text-foreground">🌐 Public Exam (উন্মুক্ত পরীক্ষা)</p>
+                <p className="text-[11px] text-muted-foreground">
+                  Visible on the Student Arena & Institution Portal. Any student can discover and take it.
+                </p>
+              </div>
+            </div>
+
+            <div
+              onClick={() => setIsPrivate(true)}
+              className={`p-3 rounded-xl border cursor-pointer transition-all flex items-start gap-2.5 ${
+                isPrivate
+                  ? "border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/30 ring-1 ring-emerald-500"
+                  : "border-border bg-background hover:bg-muted/40"
+              }`}
+            >
+              <Lock className={`h-4 w-4 mt-0.5 ${isPrivate ? "text-emerald-600" : "text-muted-foreground"}`} />
+              <div>
+                <p className="text-xs font-bold text-foreground">🔒 Private Exam (গোপন / নির্দিষ্ট ব্যাচ লিংক)</p>
+                <p className="text-[11px] text-muted-foreground">
+                  Hidden from public listings. Only students with the private link can view, take, and see results.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {isPrivate && (
+            <div className="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-xs flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Lock className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                <span className="font-semibold text-foreground">Private Shareable Link:</span>
+                <code className="font-mono text-emerald-800 dark:text-emerald-300 font-bold bg-white dark:bg-card px-2 py-0.5 rounded border border-emerald-200">
+                  /exam/{accessCode}?privateKey={privateAccessToken}
+                </code>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  const url = `${window.location.origin}/exam/${accessCode}?privateKey=${privateAccessToken}`;
+                  navigator.clipboard.writeText(url);
+                  setCopiedLink(true);
+                  setTimeout(() => setCopiedLink(false), 2000);
+                }}
+                className="px-2.5 py-1 rounded bg-emerald-600 text-white font-bold text-[11px] hover:bg-emerald-700 flex items-center gap-1"
+              >
+                {copiedLink ? <CheckCircle2 className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                {copiedLink ? "Copied!" : "Copy Private Link"}
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Live Link Preview Callout */}

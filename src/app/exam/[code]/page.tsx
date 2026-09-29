@@ -16,6 +16,7 @@ import {
   Phone,
   FileCheck2,
   BookOpen,
+  Lock,
 } from "lucide-react";
 import { Exam, SubmissionAnswer } from "@/lib/types";
 
@@ -31,6 +32,9 @@ export default function DirectExamArenaPage({
   const [loading, setLoading] = useState(true);
   const [studentName, setStudentName] = useState("");
   const [studentRoll, setStudentRoll] = useState("");
+  const [hasPrivateAccess, setHasPrivateAccess] = useState(true);
+  const [enteredKey, setEnteredKey] = useState("");
+  const [keyError, setKeyError] = useState("");
   const [isStarted, setIsStarted] = useState(false);
   const [timeLeftSeconds, setTimeLeftSeconds] = useState(5400);
   const [answers, setAnswers] = useState<Record<string, SubmissionAnswer>>({});
@@ -48,6 +52,21 @@ export default function DirectExamArenaPage({
         if (data.exam) {
           setExam(data.exam);
           setTimeLeftSeconds(data.exam.durationMinutes * 60);
+
+          if (data.exam.isPrivate) {
+            if (typeof window !== "undefined") {
+              const urlParams = new URLSearchParams(window.location.search);
+              const key = urlParams.get("privateKey") || urlParams.get("key");
+              if (
+                key &&
+                key.trim().toLowerCase() === data.exam.privateAccessToken?.toLowerCase()
+              ) {
+                setHasPrivateAccess(true);
+              } else {
+                setHasPrivateAccess(false);
+              }
+            }
+          }
         }
       })
       .finally(() => setLoading(false));
@@ -120,6 +139,9 @@ export default function DirectExamArenaPage({
           answerSheetImages: uploadedPhotos,
           studentName,
           studentRoll,
+          batchId: exam.batchId,
+          batchName: exam.batchName,
+          institutionSlug: exam.institutionSlug,
         }),
       });
       const subData = await subRes.json();
@@ -160,6 +182,61 @@ export default function DirectExamArenaPage({
         <Link href="/" className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold inline-block">
           Go to KhataAI Home
         </Link>
+      </div>
+    );
+  }
+
+  // Private Exam Security Key Gate
+  if (exam.isPrivate && !hasPrivateAccess) {
+    return (
+      <div className="min-h-[85vh] flex items-center justify-center p-4">
+        <div className="w-full max-w-md rounded-3xl border border-border bg-card p-8 shadow-2xl space-y-6 text-center">
+          <div className="h-16 w-16 rounded-2xl bg-amber-500/10 text-amber-600 border border-amber-500/20 mx-auto flex items-center justify-center">
+            <Lock className="h-8 w-8" />
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-xl font-black text-foreground">Private Batch Exam</h2>
+            <p className="text-xs text-muted-foreground">
+              "{exam.title}" is private. Please enter the private access key provided by your institution or batch teacher.
+            </p>
+          </div>
+
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (enteredKey.trim().toLowerCase() === exam.privateAccessToken?.toLowerCase()) {
+                setHasPrivateAccess(true);
+                setKeyError("");
+              } else {
+                setKeyError("Invalid access key. Please verify with your institution.");
+              }
+            }}
+            className="space-y-4 text-left"
+          >
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-foreground">Private Access Key:</label>
+              <input
+                type="text"
+                value={enteredKey}
+                onChange={(e) => setEnteredKey(e.target.value)}
+                placeholder="e.g. PVT_A1B2C3"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-border bg-background text-sm font-mono text-center font-bold tracking-wider focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+              />
+              {keyError && <p className="text-xs text-destructive font-semibold">{keyError}</p>}
+            </div>
+
+            <button
+              type="submit"
+              className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md transition-all"
+            >
+              Unlock Private Exam →
+            </button>
+          </form>
+
+          <Link href="/" className="text-xs text-muted-foreground hover:underline inline-block">
+            ← Back to KhataAI Home
+          </Link>
+        </div>
       </div>
     );
   }

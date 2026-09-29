@@ -1,6 +1,8 @@
 import { DEFAULT_AI_SETTINGS, DEMO_USERS, EXAM_TYPES } from "./constants";
 import { SEED_EXAMS, SEED_SUBMISSIONS } from "./seed-data";
 import {
+  Batch,
+  EnrolledStudent,
   EvaluationResult,
   Exam,
   GlobalAISettings,
@@ -10,6 +12,101 @@ import {
   User,
   UserRole,
 } from "./types";
+
+export const SEED_BATCHES: Batch[] = [
+  {
+    id: "batch_udvash_01",
+    institutionSlug: "udvash-academic",
+    name: "HSC 2026 Engineering Foundation Batch",
+    description: "BUET & Medical admission special CQ & MCQ weekly evaluation program.",
+    curriculumCode: "HSC",
+    createdAt: "2026-01-15T00:00:00.000Z",
+    enrolledStudentsCount: 48,
+  },
+  {
+    id: "batch_udvash_02",
+    institutionSlug: "udvash-academic",
+    name: "Varsity 'Ka' Rapid Crash Course 2026",
+    description: "Dhaka University 'Ka' unit targeted model testing batch.",
+    curriculumCode: "DU_A",
+    createdAt: "2026-02-01T00:00:00.000Z",
+    enrolledStudentsCount: 35,
+  },
+  {
+    id: "batch_notredame_01",
+    institutionSlug: "notredame-college",
+    name: "Class 12 Science Section A (Morning)",
+    description: "Physics, Chemistry and Higher Math semester evaluation batch.",
+    curriculumCode: "HSC",
+    createdAt: "2026-01-10T00:00:00.000Z",
+    enrolledStudentsCount: 60,
+  },
+  {
+    id: "batch_saifurs_01",
+    institutionSlug: "saifurs-ielts",
+    name: "IELTS Academic Writing Masterclass - Batch 14",
+    description: "Target Band 7.5+ Task 1 and Task 2 intensive writing evaluation.",
+    curriculumCode: "IELTS",
+    createdAt: "2026-02-10T00:00:00.000Z",
+    enrolledStudentsCount: 24,
+  },
+  {
+    id: "batch_rafiq_01",
+    institutionSlug: "prof-rafiq",
+    name: "Physics CQ Special Master Batch",
+    description: "HSC 1st & 2nd Paper creative questions drill & formula breakdown.",
+    curriculumCode: "HSC",
+    createdAt: "2026-01-20T00:00:00.000Z",
+    enrolledStudentsCount: 18,
+  },
+];
+
+export const SEED_ENROLLED_STUDENTS: EnrolledStudent[] = [
+  {
+    id: "enr_01",
+    batchId: "batch_udvash_01",
+    batchName: "HSC 2026 Engineering Foundation Batch",
+    institutionSlug: "udvash-academic",
+    studentName: "Tahmid Hasan (তাহমিদ হাসান)",
+    studentRoll: "ENG-101",
+    studentEmail: "tahmid@student.ac.bd",
+    studentPhone: "+880 1712 345678",
+    enrolledAt: "2026-01-16T10:00:00.000Z",
+  },
+  {
+    id: "enr_02",
+    batchId: "batch_udvash_01",
+    batchName: "HSC 2026 Engineering Foundation Batch",
+    institutionSlug: "udvash-academic",
+    studentName: "Samiul Islam (সামিউল ইসলাম)",
+    studentRoll: "ENG-102",
+    studentEmail: "samiul@gmail.com",
+    studentPhone: "+880 1812 345679",
+    enrolledAt: "2026-01-16T11:00:00.000Z",
+  },
+  {
+    id: "enr_03",
+    batchId: "batch_notredame_01",
+    batchName: "Class 12 Science Section A (Morning)",
+    institutionSlug: "notredame-college",
+    studentName: "Rafid Al-Mamun (রাফিদ আল মামুন)",
+    studentRoll: "NDC-2401",
+    studentEmail: "rafid@ndc.edu.bd",
+    studentPhone: "+880 1912 345680",
+    enrolledAt: "2026-01-12T09:30:00.000Z",
+  },
+  {
+    id: "enr_04",
+    batchId: "batch_saifurs_01",
+    batchName: "IELTS Academic Writing Masterclass - Batch 14",
+    institutionSlug: "saifurs-ielts",
+    studentName: "Nusrat Jahan (নুসরাত জাহান)",
+    studentRoll: "IELTS-014",
+    studentEmail: "nusrat.jahan@gmail.com",
+    studentPhone: "+880 1612 345681",
+    enrolledAt: "2026-02-11T14:00:00.000Z",
+  },
+];
 
 export const SEED_INSTITUTIONS: InstitutionProfile[] = [
   {
@@ -82,6 +179,8 @@ class DataStore {
   private exams: Exam[] = [...SEED_EXAMS];
   private submissions: Submission[] = [...SEED_SUBMISSIONS];
   private institutions: InstitutionProfile[] = [...SEED_INSTITUTIONS];
+  private batches: Batch[] = [...SEED_BATCHES];
+  private enrolledStudents: EnrolledStudent[] = [...SEED_ENROLLED_STUDENTS];
   private aiSettings: GlobalAISettings = { ...DEFAULT_AI_SETTINGS };
 
   private constructor() {}
@@ -236,13 +335,81 @@ class DataStore {
     return newInst;
   }
 
+  // Batches
+  public getBatches(institutionSlug?: string): Batch[] {
+    if (!institutionSlug) return this.batches;
+    return this.batches.filter(
+      (b) => b.institutionSlug.toLowerCase() === institutionSlug.toLowerCase()
+    );
+  }
+
+  public getBatchById(batchId: string): Batch | undefined {
+    return this.batches.find((b) => b.id === batchId);
+  }
+
+  public createBatch(batchData: Omit<Batch, "id" | "createdAt">): Batch {
+    const newBatch: Batch = {
+      ...batchData,
+      id: `batch_${Date.now()}`,
+      createdAt: new Date().toISOString(),
+      enrolledStudentsCount: 0,
+    };
+    this.batches.unshift(newBatch);
+    return newBatch;
+  }
+
+  // Student Enrollment in Batches
+  public getEnrolledStudents(batchIdOrSlug?: string): EnrolledStudent[] {
+    if (!batchIdOrSlug) return this.enrolledStudents;
+    const lower = batchIdOrSlug.toLowerCase();
+    return this.enrolledStudents.filter(
+      (e) =>
+        e.batchId.toLowerCase() === lower ||
+        e.institutionSlug.toLowerCase() === lower
+    );
+  }
+
+  public enrollStudent(
+    studentData: Omit<EnrolledStudent, "id" | "enrolledAt">
+  ): EnrolledStudent {
+    const batch = this.getBatchById(studentData.batchId);
+    const newEnrollment: EnrolledStudent = {
+      ...studentData,
+      id: `enr_${Date.now()}`,
+      batchName: batch?.name || studentData.batchName,
+      enrolledAt: new Date().toISOString(),
+    };
+    this.enrolledStudents.unshift(newEnrollment);
+
+    if (batch) {
+      batch.enrolledStudentsCount = (batch.enrolledStudentsCount || 0) + 1;
+    }
+
+    return newEnrollment;
+  }
+
   // Exams
   public getExams(): Exam[] {
     return this.exams;
   }
 
   public getPublicExams(): Exam[] {
-    return this.exams.filter((e) => e.isPublic || !e.creatorId || e.creatorId === "usr_admin_01");
+    return this.exams.filter((e) => !e.isPrivate && (e.isPublic || !e.creatorId || e.creatorId === "usr_admin_01"));
+  }
+
+  public getExamsByInstitution(
+    slug: string,
+    isOwnerOrTeacher: boolean = false
+  ): Exam[] {
+    const lower = slug.toLowerCase();
+    return this.exams.filter((e) => {
+      const match =
+        (e as any).institutionSlug?.toLowerCase() === lower ||
+        (lower === "udvash-academic" && (!e.institutionSlug || e.institutionSlug === "udvash-academic"));
+      if (!match) return false;
+      if (isOwnerOrTeacher) return true;
+      return !e.isPrivate;
+    });
   }
 
   public getExamById(id: string): Exam | undefined {
@@ -257,10 +424,20 @@ class DataStore {
     );
   }
 
+  public getExamByPrivateToken(token: string): Exam | undefined {
+    return this.exams.find(
+      (e) => e.privateAccessToken?.toLowerCase() === token.toLowerCase()
+    );
+  }
+
   public createExam(examData: Omit<Exam, "id" | "createdAt" | "updatedAt">): Exam {
     const newExam: Exam = {
       ...examData,
       id: `exam_${Date.now()}`,
+      privateAccessToken:
+        examData.isPrivate && !examData.privateAccessToken
+          ? Math.random().toString(36).substring(2, 10).toUpperCase()
+          : examData.privateAccessToken,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };

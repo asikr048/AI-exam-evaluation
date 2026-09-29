@@ -99,6 +99,28 @@ export interface Question {
   ieltsMinWords?: number;
 }
 
+export interface Batch {
+  id: string;
+  institutionSlug: string;
+  name: string;
+  description?: string;
+  curriculumCode?: string;
+  createdAt: string;
+  enrolledStudentsCount?: number;
+}
+
+export interface EnrolledStudent {
+  id: string;
+  batchId: string;
+  batchName?: string;
+  institutionSlug: string;
+  studentName: string;
+  studentRoll: string;
+  studentEmail?: string;
+  studentPhone?: string;
+  enrolledAt: string;
+}
+
 export interface Exam {
   id: string;
   title: string;
@@ -117,7 +139,11 @@ export interface Exam {
   updatedAt: string;
   accessCode?: string;
   isPublic?: boolean;
+  isPrivate?: boolean;
+  privateAccessToken?: string;
   institutionSlug?: string;
+  batchId?: string;
+  batchName?: string;
 }
 
 export interface SubmissionAnswer {
@@ -195,6 +221,9 @@ export interface Submission {
   studentName: string;
   studentRoll?: string;
   studentEmail?: string;
+  batchId?: string;
+  batchName?: string;
+  institutionSlug?: string;
   submittedAt: string;
   status: "PENDING_EVALUATION" | "EVALUATING" | "EVALUATED" | "NEEDS_REVIEW";
   answerSheetImages: string[];
