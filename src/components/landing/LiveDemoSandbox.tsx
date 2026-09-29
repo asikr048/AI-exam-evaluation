@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import Image from "next/image";
 import {
   Sparkles,
@@ -23,8 +23,9 @@ import {
   Layers,
   Check,
   Edit3,
+  RefreshCw,
 } from "lucide-react";
-import { EvaluationResult, RubricPoint } from "@/lib/types";
+import { EvaluationResult } from "@/lib/types";
 
 interface CustomRubricItem {
   id: string;
@@ -48,48 +49,134 @@ export function LiveDemoSandbox() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
-  // Custom Question & Marking Points State
-  const [customQuestionTitle, setCustomQuestionTitle] = useState("Custom Subjective Physics Problem");
-  const [customCurriculum, setCustomCurriculum] = useState("HSC");
-  const [customQuestionPrompt, setCustomQuestionPrompt] = useState(
-    "A vehicle traveling at 20 m/s accelerates uniformly at 2.5 m/s² for 8 seconds. Calculate: (1) Final velocity, (2) Total distance traveled, and explain the physical principles involved."
-  );
-  const [customModelAnswer, setCustomModelAnswer] = useState(
-    "1. Final Velocity: v = u + at = 20 + (2.5 * 8) = 20 + 20 = 40 m/s.\n2. Total Distance: s = ut + (1/2)at² = (20 * 8) + (0.5 * 2.5 * 64) = 160 + 80 = 240 meters.\n3. Physical Principle: Uniform acceleration according to Newton's second law of motion with constant force application."
-  );
-  const [customRubrics, setCustomRubrics] = useState<CustomRubricItem[]>([
-    {
-      id: "cr_1",
-      criterion: "Formula Identification & Initial Variables",
-      maxPoints: 2.0,
-      description: "Clearly states v = u + at and identifies u=20 m/s, a=2.5 m/s², t=8s with proper units.",
+  // Templates for questions
+  const templates = {
+    projectile: {
+      title: "HSC Physics: গতিবিদ্যা ও প্রাস সৃজনশীল প্রশ্ন (১০ নম্বর)",
+      curriculum: "HSC",
+      prompt:
+        "২০ মিটার উঁচু একটি দালানের ছাদ থেকে একটি ক্রিকেট বলকে আনুভূমিকের সাথে ৩০° কোণে ৪০ মি./সে. বেগে উপরের দিকে তির্যকভাবে নিক্ষেপ করা হলো। অভিকর্ষজ ত্বরণ g = ৯.৮ মি./সে.²। (ক) প্রাস কী? (খ) চলন্ত বাস থেকে লাফ দিলে যাত্রী সামনের দিকে ঝুঁকে পড়ে কেন? (গ) ক্রিকেট বলটির সর্বোচ্চ উচ্চতায় পৌঁছানোর সময় নির্ণয় করো। (ঘ) সর্বোচ্চ বিন্দুতে গতিশক্তি নিক্ষেপণ বিন্দুর গতিশক্তির কত অংশ হবে গাণিতিক বিশ্লেষণ করো।",
+      modelAnswer:
+        "(ক) প্রাস: আনুভূমিকের সাথে কোনো কোণে মহাশূন্যে নিক্ষিপ্ত বস্তুকে প্রাস বলে।\n(খ) গতিজড়তার কারণে। বাসের সমান বেগ লাভ করে, ভূমিতে পা স্থির হলেও শরীরের ঊর্ধ্বাংশ পূর্বের বেগ বজায় রেখে চলতে চায়।\n(গ) t = (v₀ sinθ)/g = (40 × sin 30°)/9.8 = 2.041 s ≈ 2.04 সেকেন্ড।\n(ঘ) Ek₁ = ½ m v₀² এবং শীর্ষবিন্দুতে v_x = v₀ cos 30°। Ek₂ = ½ m (v₀ cos 30°)² = ¾ Ek₁। সর্বোচ্চ বিন্দুতে গতিশক্তি ¾ গুণ।",
+      rubrics: [
+        {
+          id: "r_p_1",
+          criterion: "(ক) জ্ঞানমূলক: প্রাসের সঠিক সংজ্ঞা",
+          maxPoints: 1.0,
+          description: "তির্যকভাবে মহাশূন্যে নিক্ষিপ্ত বস্তুর সংজ্ঞার উল্লেখ থাকলে পূর্ণ ১ নম্বর।",
+        },
+        {
+          id: "r_p_2",
+          criterion: "(খ) অনুধাবনমূলক: চলন্ত বাস ও গতিজড়তা ব্যাখ্যা",
+          maxPoints: 2.0,
+          description: "১ম প্যারায় গতিজড়তার ধারণা (১) + ২য় প্যারায় পা ও ঊর্ধ্বাংশের আপেক্ষিক গতি ব্যাখ্যা (১)।",
+        },
+        {
+          id: "r_p_3",
+          criterion: "(গ) প্রয়োগমূলক: সময় সমীকরণ ও ২.০৪ সেকেন্ড মান",
+          maxPoints: 3.0,
+          description: "প্রাস সমীকরণ t = (v₀ sinθ)/g (১) + মান বসানো (১) + চূড়ান্ত এককসহ মান ২.০৪ s (১)।",
+        },
+        {
+          id: "r_p_4",
+          criterion: "(ঘ) উচ্চতর দক্ষতা: গতিশক্তি ¾ গুণ প্রতিপাদন ও সার্বিক সিদ্ধান্ত",
+          maxPoints: 4.0,
+          description: "আদি গতিশক্তি Ek₁ (১) + বেগ বিশ্লেষণ (১) + Ek₂ = ¾ Ek₁ প্রতিপাদন (১) + সিদ্ধান্ত (১)।",
+        },
+      ],
+      sampleImage: "/samples/bengali_cq_script.svg",
     },
-    {
-      id: "cr_2",
-      criterion: "Final Velocity Calculation & SI Unit",
-      maxPoints: 3.0,
-      description: "Correct mathematical substitution resulting in v = 40 m/s with explicit unit declaration.",
+    floods: {
+      title: "Civil Service & Public Policy: Climate Adaptation & Disaster Governance (২০ নম্বর)",
+      curriculum: "BCS",
+      prompt:
+        "Question No 03: Lessons emerged from 2025 Floods in the context of Climate Adaptation and Disaster Governance. Analyze institutional vulnerabilities, transport infrastructure breaches, and propose strategic resilience mechanisms.",
+      modelAnswer:
+        "1. Introduction & Contextualization: Severe recurring floods demonstrate climate change as a permanent reality. Citation of UN Secretary-General Antonio Guterres quote.\n2. Climate Adaptation Challenges: 2.1 Anticipating unseasonal rainfall with 15-20 days forecast lead time. 2.2 Post-flood drought paradox in water-stressed nations (<1000 m³ water per capita).\n3. Infrastructure Vulnerability: 2.3 Karachi drainage system capacity of 30-40 mm/hr overwhelmed by 300-400 mm/hr downpour. Breakdown of Motorway M-5 national logistics lifeline, isolating M-8 and M-4 corridors.\n4. Disaster Governance: 3.1 Severe shortage of weather monitoring stations (Pakistan operates only 82 stations = 1 per 10,000 km² vs WMO standard of 1 per 100 km²). 3.2 Inadequate rescue boats and flood relief camps (Jalalpur Pirwala case study).",
+      rubrics: [
+        {
+          id: "r_f_1",
+          criterion: "1. Introduction & Antonio Guterres Quote",
+          maxPoints: 4.0,
+          description: "Thesis on climate change as the new normalcy and citation of Antonio Guterres quote.",
+        },
+        {
+          id: "r_f_2",
+          criterion: "2. Climate Adaptation & Water Drought Paradox",
+          maxPoints: 4.0,
+          description: "Analysis of 15-20 day early rain forecast and water scarcity below 1000m³ per capita.",
+        },
+        {
+          id: "r_f_3",
+          criterion: "3. Urban Infrastructure: Karachi Drainage Case Study",
+          maxPoints: 4.0,
+          description: "Comparative examination of drainage capacity (30-40 mm/hr) vs actual rainfall (300-400 mm/hr).",
+        },
+        {
+          id: "r_f_4",
+          criterion: "4. Motorway M-5 Route Breakdown Map",
+          maxPoints: 4.0,
+          description: "Hand-drawn geographical schematic illustrating M-5 breakage, Karachi port cutoff, and isolation of M-8 and M-4.",
+        },
+        {
+          id: "r_f_5",
+          criterion: "5. Disaster Governance Deficit & WMO Station Disparity",
+          maxPoints: 4.0,
+          description: "Disaster governance analysis citing 82 weather stations across Pakistan (1/10,000 km² vs 1/100 km² standard) and rescue boat shortages.",
+        },
+      ],
+      sampleImage: "/samples/handwritten_essay_intro.jpg",
     },
-    {
-      id: "cr_3",
-      criterion: "Distance Traveled Derivation & Result",
-      maxPoints: 3.0,
-      description: "Calculates s = ut + 0.5at² = 240 meters with intermediate steps demonstrated.",
+    vehicle: {
+      title: "Kinematics: Vehicle Acceleration & Distance Problem (১০ নম্বর)",
+      curriculum: "HSC",
+      prompt:
+        "A vehicle traveling at 20 m/s accelerates uniformly at 2.5 m/s² for 8 seconds. Calculate: (1) Final velocity, (2) Total distance traveled, and explain the physical principles involved under Newton's laws.",
+      modelAnswer:
+        "1. Final Velocity: v = u + at = 20 + (2.5 * 8) = 20 + 20 = 40 m/s.\n2. Total Distance: s = ut + (1/2)at² = (20 * 8) + (0.5 * 2.5 * 64) = 160 + 80 = 240 meters.\n3. Physical Principle: Uniform acceleration under constant net force in classical kinematics.",
+      rubrics: [
+        {
+          id: "r_v_1",
+          criterion: "Step 1: Formula Identification & Initial Variables",
+          maxPoints: 2.0,
+          description: "States v = u + at and identifies u=20 m/s, a=2.5 m/s², t=8s with proper units.",
+        },
+        {
+          id: "r_v_2",
+          criterion: "Step 2: Final Velocity Calculation & SI Unit",
+          maxPoints: 3.0,
+          description: "Correct mathematical substitution resulting in v = 40 m/s with explicit unit declaration.",
+        },
+        {
+          id: "r_v_3",
+          criterion: "Step 3: Distance Traveled Derivation & Result",
+          maxPoints: 3.0,
+          description: "Calculates s = ut + 0.5at² = 240 meters with intermediate steps demonstrated.",
+        },
+        {
+          id: "r_v_4",
+          criterion: "Step 4: Physical Principle & Scientific Explanation",
+          maxPoints: 2.0,
+          description: "Explains uniform acceleration and constant force relation under classical mechanics.",
+        },
+      ],
+      sampleImage: "/samples/bengali_cq_script.svg",
     },
-    {
-      id: "cr_4",
-      criterion: "Physical Principle & Scientific Explanation",
-      maxPoints: 2.0,
-      description: "Explains uniform acceleration and constant force relation under classical mechanics.",
-    },
-  ]);
+  };
+
+  // Custom Question & Marking Points State (defaults to projectile problem to match default bengali script!)
+  const [customQuestionTitle, setCustomQuestionTitle] = useState(templates.projectile.title);
+  const [customCurriculum, setCustomCurriculum] = useState(templates.projectile.curriculum);
+  const [customQuestionPrompt, setCustomQuestionPrompt] = useState(templates.projectile.prompt);
+  const [customModelAnswer, setCustomModelAnswer] = useState(templates.projectile.modelAnswer);
+  const [customRubrics, setCustomRubrics] = useState<CustomRubricItem[]>(templates.projectile.rubrics);
 
   const sampleImages = [
     {
       label: "🇧🇩 Bengali CQ Khata (Board Paper)",
       url: "/samples/bengali_cq_script.svg",
       type: "cq",
-      desc: "Lined Board Exam Answer Sheet with ক, খ, গ, ঘ & Teacher Marks",
+      desc: "Lined Board Paper with ক, খ, গ, ঘ on Projectile Motion & Teacher Marks",
     },
     {
       label: "📄 Essay Page 1: Intro & Quote",
@@ -125,6 +212,76 @@ export function LiveDemoSandbox() {
   ];
 
   const activeImageUrl = customImageBase64 || selectedSampleImage;
+
+  // Live Topic Alignment / Mismatch Detection:
+  const alignmentAnalysis = useMemo(() => {
+    const isBengaliCQImage = activeImageUrl.includes("bengali_cq_script");
+    const isFloodsEssayImage =
+      activeImageUrl.includes("handwritten_essay") ||
+      activeImageUrl.includes("618712129") ||
+      activeImageUrl.includes("620080148") ||
+      activeImageUrl.includes("622791192") ||
+      activeImageUrl.includes("623292396");
+
+    const currentCombinedText = (
+      selectedPreset === "cq"
+        ? "প্রাস projectile গতিবিদ্যা ক্রিকেট বল"
+        : selectedPreset === "essay"
+        ? "flood climate adaptation karachi motorway disaster"
+        : customQuestionTitle + " " + customQuestionPrompt
+    ).toLowerCase();
+
+    const isQuestionAboutProjectile =
+      selectedPreset === "cq" ||
+      currentCombinedText.includes("প্রাস") ||
+      currentCombinedText.includes("projectile") ||
+      currentCombinedText.includes("ক্রিকেট বল") ||
+      currentCombinedText.includes("নিক্ষেপ") ||
+      currentCombinedText.includes("গতিজড়তা") ||
+      currentCombinedText.includes("গতিজড়তা");
+
+    const isQuestionAboutFloods =
+      selectedPreset === "essay" ||
+      currentCombinedText.includes("flood") ||
+      currentCombinedText.includes("climate") ||
+      currentCombinedText.includes("adaptation") ||
+      currentCombinedText.includes("karachi") ||
+      currentCombinedText.includes("guterres") ||
+      currentCombinedText.includes("disaster");
+
+    let isMismatched = false;
+    let mismatchMessage = "";
+
+    if (isBengaliCQImage && !isQuestionAboutProjectile) {
+      isMismatched = true;
+      mismatchMessage =
+        "Selected answer sheet is Bengali CQ on Projectile Motion (প্রাস), but the question is completely different! The AI will catch this irrelevance and award 0 marks.";
+    } else if (isFloodsEssayImage && !isQuestionAboutFloods) {
+      isMismatched = true;
+      mismatchMessage =
+        "Selected answer sheet discusses 2025 Floods & Climate Adaptation, but the question is completely different! The AI will catch this irrelevance and award 0 marks.";
+    }
+
+    return {
+      isMismatched,
+      mismatchMessage,
+      isBengaliCQImage,
+      isFloodsEssayImage,
+    };
+  }, [activeImageUrl, selectedPreset, customQuestionTitle, customQuestionPrompt]);
+
+  const loadTemplate = (key: "projectile" | "floods" | "vehicle") => {
+    const t = templates[key];
+    setCustomQuestionTitle(t.title);
+    setCustomCurriculum(t.curriculum);
+    setCustomQuestionPrompt(t.prompt);
+    setCustomModelAnswer(t.modelAnswer);
+    setCustomRubrics(t.rubrics);
+    if (!customImageBase64) {
+      setSelectedSampleImage(t.sampleImage);
+    }
+    setEvaluationResult(null);
+  };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -189,7 +346,7 @@ export function LiveDemoSandbox() {
         // Custom created exam with user defined points and marks
         payload.customExam = {
           title: customQuestionTitle,
-          subject: "Custom Evaluation",
+          subject: "Custom Subjective Evaluation",
           curriculumCode: customCurriculum,
           totalMarks: totalCustomMarks,
           questions: [
@@ -329,8 +486,8 @@ export function LiveDemoSandbox() {
             </div>
           </div>
 
-          {/* Quick Real Question Header Banner */}
-          <div className="px-6 py-3.5 border-b border-border bg-background/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+          {/* Real-time Relevance & Topic Alignment Banner */}
+          <div className="px-6 py-3 border-b border-border bg-background/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
             <div className="flex items-center gap-2.5">
               <span className="font-extrabold text-foreground flex items-center gap-1.5">
                 <BookOpen className="h-3.5 w-3.5 text-emerald-600" />
@@ -338,21 +495,32 @@ export function LiveDemoSandbox() {
                 {selectedPreset === "essay" && "Civil Service: 2025 Floods & Climate Governance (২০ নম্বর)"}
                 {selectedPreset === "custom" && `${customQuestionTitle} (${totalCustomMarks} নম্বর)`}
               </span>
-              <span className="text-muted-foreground">•</span>
-              <span className="text-muted-foreground truncate max-w-md">
-                {selectedPreset === "cq" && "ক (১) • খ (২) • গ (৩) • ঘ (৪) ধাপভিত্তিক স্পষ্ট নম্বর বণ্টন"}
-                {selectedPreset === "essay" && "ভূমিকা, খরা প্যারাডক্স, করাচি ড্রেনেজ, M-5 রুট ম্যাপ ও WMO ডেটা"}
-                {selectedPreset === "custom" && `${customRubrics.length}টি সুনির্দিষ্ট রুব্রিক পয়েন্ট ও নম্বর`}
-              </span>
             </div>
 
-            <button
-              onClick={() => setShowQuestionModal(true)}
-              className="text-emerald-600 hover:underline font-bold text-left sm:text-right shrink-0 flex items-center gap-1"
-            >
-              <span>{selectedPreset === "custom" ? "Customize Points & Model Answer" : "Inspect All Rubric Points"}</span>
-              <ChevronRight className="h-3 w-3" />
-            </button>
+            {/* Topic Match Status */}
+            {alignmentAnalysis.isMismatched ? (
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-300 font-bold text-[11px] animate-pulse">
+                <AlertTriangle className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+                <span>Topic Mismatch: Answer sheet is irrelevant to question (AI will give 0 marks)</span>
+                <button
+                  onClick={() => {
+                    if (alignmentAnalysis.isBengaliCQImage) {
+                      loadTemplate("projectile");
+                    } else if (alignmentAnalysis.isFloodsEssayImage) {
+                      loadTemplate("floods");
+                    }
+                  }}
+                  className="ml-1 underline font-black hover:text-amber-900"
+                >
+                  Auto-Align
+                </button>
+              </div>
+            ) : (
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-bold text-[11px]">
+                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                <span>Verified Match: Answer sheet matches question topic</span>
+              </div>
+            )}
           </div>
 
           {/* Sandbox Body: Split Screen */}
@@ -507,15 +675,39 @@ export function LiveDemoSandbox() {
               ) : evaluationResult ? (
                 /* Full Evaluation Results View */
                 <div className="space-y-5 animate-in fade-in duration-300">
+                  {/* Irrelevant Submission Alert Callout */}
+                  {evaluationResult.totalScore === 0 && evaluationResult.overallFeedback.includes("Irrelevant") && (
+                    <div className="p-4 rounded-2xl bg-destructive/10 border border-destructive/30 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-destructive font-black text-xs">
+                          <AlertTriangle className="h-4 w-4 shrink-0" />
+                          <span>❌ IRRELEVANT ANSWER SHEET DETECTED — 0 MARKS AWARDED</span>
+                        </div>
+                        <span className="px-2 py-0.5 rounded bg-destructive text-white text-[10px] font-black uppercase">
+                          Failed (0%)
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        {evaluationResult.overallFeedback}
+                      </p>
+                    </div>
+                  )}
+
                   {/* Top Score Banner */}
-                  <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/40 dark:to-teal-950/20 border border-emerald-200 dark:border-emerald-800 flex flex-wrap items-center justify-between gap-4 shadow-sm">
+                  <div
+                    className={`p-4 sm:p-5 rounded-2xl border flex flex-wrap items-center justify-between gap-4 shadow-sm ${
+                      evaluationResult.totalScore === 0
+                        ? "bg-destructive/10 border-destructive/30"
+                        : "bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/40 dark:to-teal-950/20 border-emerald-200 dark:border-emerald-800"
+                    }`}
+                  >
                     <div>
-                      <span className="text-[11px] font-bold text-emerald-800 dark:text-emerald-300 uppercase tracking-wider">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
                         Evaluated Score & Performance
                       </span>
-                      <div className="text-2xl sm:text-3xl font-black text-emerald-950 dark:text-emerald-100 mt-0.5">
+                      <div className="text-2xl sm:text-3xl font-black text-foreground mt-0.5">
                         {evaluationResult.totalScore} / {evaluationResult.maxScore}{" "}
-                        <span className="text-base sm:text-lg font-bold text-emerald-700 dark:text-emerald-300">
+                        <span className="text-base sm:text-lg font-bold text-muted-foreground">
                           ({evaluationResult.percentage}%)
                         </span>
                       </div>
@@ -524,12 +716,16 @@ export function LiveDemoSandbox() {
                     <div className="flex items-center gap-3">
                       <div className="text-right">
                         <div className="text-[11px] text-muted-foreground font-semibold">Grade Awarded:</div>
-                        <div className="text-lg font-black text-emerald-800 dark:text-emerald-300">
+                        <div className="text-lg font-black text-foreground">
                           {evaluationResult.grade}
                         </div>
                       </div>
-                      <div className="h-11 w-11 rounded-2xl bg-emerald-600 text-white flex items-center justify-center font-bold text-sm shadow-md shadow-emerald-600/20">
-                        {evaluationResult.gpa > 0 ? `GPA ${evaluationResult.gpa.toFixed(1)}` : "A+"}
+                      <div
+                        className={`h-11 w-11 rounded-2xl text-white flex items-center justify-center font-bold text-sm shadow-md ${
+                          evaluationResult.totalScore === 0 ? "bg-destructive" : "bg-emerald-600"
+                        }`}
+                      >
+                        {evaluationResult.gpa > 0 ? `GPA ${evaluationResult.gpa.toFixed(1)}` : evaluationResult.grade}
                       </div>
                     </div>
                   </div>
@@ -606,6 +802,8 @@ export function LiveDemoSandbox() {
                                   className={`px-2 py-0.5 rounded-md text-[11px] font-black ${
                                     part.awardedMarks === part.maxMarks
                                       ? "bg-emerald-500/15 text-emerald-600"
+                                      : part.awardedMarks === 0
+                                      ? "bg-destructive/15 text-destructive"
                                       : "bg-amber-500/15 text-amber-600"
                                   }`}
                                 >
@@ -621,25 +819,6 @@ export function LiveDemoSandbox() {
                               </span>
                               <p className="leading-relaxed">{part.feedback}</p>
                             </div>
-
-                            {/* Rubric Points inside part */}
-                            {part.rubricScores && part.rubricScores.length > 0 && (
-                              <div className="pt-1 space-y-1">
-                                {part.rubricScores.map((r) => (
-                                  <div
-                                    key={r.rubricId}
-                                    className="flex items-center justify-between text-[11px] py-1 px-2 rounded-lg bg-muted/40"
-                                  >
-                                    <span className="text-muted-foreground truncate max-w-[280px]">
-                                      • {r.criterion}
-                                    </span>
-                                    <span className="font-bold text-emerald-600">
-                                      +{r.awardedPoints} / {r.maxPoints} pts
-                                    </span>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
                           </div>
                         ))
                       ) : evaluationResult.questionEvaluations[0]?.rubricScores ? (
@@ -660,6 +839,8 @@ export function LiveDemoSandbox() {
                                 className={`px-2 py-0.5 rounded-md text-[11px] font-black ${
                                   r.awardedPoints === r.maxPoints
                                     ? "bg-emerald-500/15 text-emerald-600"
+                                    : r.awardedPoints === 0
+                                    ? "bg-destructive/15 text-destructive"
                                     : "bg-amber-500/15 text-amber-600"
                                 }`}
                               >
@@ -684,9 +865,9 @@ export function LiveDemoSandbox() {
                   {activeResultTab === "ocr" && (
                     <div className="p-4 rounded-2xl border border-border bg-muted/20 text-xs font-mono max-h-[350px] overflow-y-auto space-y-3 leading-relaxed">
                       <div className="font-sans font-bold text-foreground text-xs pb-1 border-b border-border">
-                        Extracted Student Handwriting (Bengali & English OCR Stream):
+                        Extracted Student Handwriting (Vision OCR Stream):
                       </div>
-                      {selectedPreset === "cq" ? (
+                      {alignmentAnalysis.isBengaliCQImage ? (
                         <div className="space-y-2 text-foreground/90 font-sans">
                           <p><strong>[১ নং প্রশ্নের উত্তর]</strong></p>
                           <p><strong>(ক) প্রাস:</strong> তির্যকভাবে বা অনুভূমিকের সাথে কোনো কোণে মহাশূন্যে বা বাতাসে নিক্ষিপ্ত বস্তুকে প্রাস বলা হয়। যেমন—নিক্ষিপ্ত ক্রিকেট বল।</p>
@@ -694,7 +875,7 @@ export function LiveDemoSandbox() {
                           <p><strong>(গ)</strong> v₀ = 40 ms⁻¹, θ = 30°, g = 9.8 ms⁻²। t = (v₀ · sinθ) / g = (40 × 0.5) / 9.8 = 2.041 s ≈ 2.04 সেকেন্ড।</p>
                           <p><strong>(ঘ)</strong> E_k1 = ½ m v₀² ... v' = v_x = v₀ cos 30° ... E_k2 = ½ m (v₀ cos 30°)² = ¾ E_k1। সর্বোচ্চ বিন্দুতে গতিশক্তি নিক্ষেপণ বিন্দুর ¾ গুণ।</p>
                         </div>
-                      ) : (
+                      ) : alignmentAnalysis.isFloodsEssayImage ? (
                         <div className="space-y-2 text-foreground/90 font-sans">
                           <p><strong>Question No 03: Floods of 2025 and lessons for Pakistan</strong></p>
                           <p><strong>1. Introduction:</strong> Pakistan has been facing frequent climate related disasters, particularly floods in recent decades... Quote: "Climate change is a fact. Those who deny it needs to be held answerable" (~ Antonio Guterres : Secretary General of UNGA)</p>
@@ -703,6 +884,8 @@ export function LiveDemoSandbox() {
                           <p><strong>Case Study 2:</strong> Breakage of M-5 motorway which is the lifeline of Pakistan national connectivity (Map attached).</p>
                           <p><strong>(3.1)</strong> WMO recommends 1 weather station per 100 km², but in Pakistan there are total 82 (1 per 10,000 km²).</p>
                         </div>
+                      ) : (
+                        <p className="text-muted-foreground font-sans">Extracted text stream from custom uploaded photo.</p>
                       )}
                     </div>
                   )}
@@ -714,10 +897,8 @@ export function LiveDemoSandbox() {
                         Examiner Official Solution & Reference Benchmark:
                       </div>
                       <p className="text-muted-foreground leading-relaxed whitespace-pre-line font-sans">
-                        {selectedPreset === "cq" &&
-                          "ক. প্রাস: আনুভূমিকের সাথে কোনো কোণে কোনো বস্তুকে শূন্যে নিক্ষেপ করা হলে তাকে প্রাস বলে।\nখ. গতিজড়তার কারণে। বাসের সমান বেগ লাভ করে, ভূমিতে পা স্থির হলেও ঊর্ধ্বাংশ পূর্বের বেগ বজায় রেখে চলতে চায়।\nগ. t = (v₀ sinθ)/g = 2.04 সেকেন্ড।\nঘ. E_k2 = 1/2 m (v₀ cos 30°)² = 3/4 E_k1। সর্বোচ্চ বিন্দুতে গতিশক্তি ৩/৪ গুণ।"}
-                        {selectedPreset === "essay" &&
-                          "1. Contextualize climate change as permanent recurring disaster. Include UNGA quote.\n2. 15-20 days early forecast lead time and water scarcity below 1000m³ per capita.\n3. Karachi drainage 30-40mm vs 300-400mm rainfall capacity crisis.\n4. Hand-drawn map illustrating M-5 breakdown and Karachi port cutoff.\n5. WMO weather monitoring station deficit (82 stations vs standard 1/100km²)."}
+                        {selectedPreset === "cq" && templates.projectile.modelAnswer}
+                        {selectedPreset === "essay" && templates.floods.modelAnswer}
                         {selectedPreset === "custom" && customModelAnswer}
                       </p>
                     </div>
@@ -758,7 +939,7 @@ export function LiveDemoSandbox() {
                   <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
                   Powered by <strong>Google Gemini Multimodal Vision & KhataAI Rubric Engine</strong>
                 </span>
-                <span>Sub-second step marking & justification</span>
+                <span>Sub-second step marking & relevance validation</span>
               </div>
             </div>
           </div>
@@ -789,6 +970,36 @@ export function LiveDemoSandbox() {
             {selectedPreset === "custom" ? (
               /* Custom Question Creator */
               <div className="space-y-4 text-xs">
+                {/* 1-Click Template Loaders */}
+                <div className="space-y-1.5 pb-2 border-b border-border">
+                  <span className="font-bold text-muted-foreground uppercase text-[10px] tracking-wider">
+                    Quick Question Templates:
+                  </span>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <button
+                      type="button"
+                      onClick={() => loadTemplate("projectile")}
+                      className="px-2.5 py-1 rounded-lg border border-border bg-muted/40 hover:bg-muted text-[11px] font-bold text-foreground"
+                    >
+                      🇧🇩 Projectile Motion (Matches Bengali Khata)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => loadTemplate("floods")}
+                      className="px-2.5 py-1 rounded-lg border border-border bg-muted/40 hover:bg-muted text-[11px] font-bold text-foreground"
+                    >
+                      🌍 Floods Essay (Matches Essay Script)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => loadTemplate("vehicle")}
+                      className="px-2.5 py-1 rounded-lg border border-border bg-muted/40 hover:bg-muted text-[11px] font-bold text-foreground"
+                    >
+                      🚗 Vehicle Kinematics (Test Mismatch)
+                    </button>
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div className="sm:col-span-2 space-y-1">
                     <label className="font-bold text-foreground">Question Title:</label>
@@ -855,7 +1066,7 @@ export function LiveDemoSandbox() {
                   </div>
 
                   <div className="space-y-2.5 max-h-56 overflow-y-auto pr-1">
-                    {customRubrics.map((r, idx) => (
+                    {customRubrics.map((r) => (
                       <div
                         key={r.id}
                         className="p-3 rounded-xl border border-border bg-muted/20 space-y-2"
@@ -926,45 +1137,15 @@ export function LiveDemoSandbox() {
                         প্রশ্ন ও ধাপভিত্তিক নম্বর বণ্টন (ক, খ, গ, ঘ):
                       </span>
                       <div className="space-y-2">
-                        <div className="p-3 rounded-xl border border-border bg-background">
-                          <div className="flex justify-between font-bold text-foreground">
-                            <span>(ক) জ্ঞানমূলক: প্রাস (Projectile) কী?</span>
-                            <span className="text-emerald-600 font-extrabold">১.০ নম্বর</span>
+                        {templates.projectile.rubrics.map((r) => (
+                          <div key={r.id} className="p-3 rounded-xl border border-border bg-background">
+                            <div className="flex justify-between font-bold text-foreground">
+                              <span>{r.criterion}</span>
+                              <span className="text-emerald-600 font-extrabold">{r.maxPoints} নম্বর</span>
+                            </div>
+                            <p className="text-[11px] text-muted-foreground mt-0.5">{r.description}</p>
                           </div>
-                          <p className="text-[11px] text-muted-foreground mt-0.5">
-                            রুব্রিক: তির্যকভাবে মহাশূন্যে নিক্ষিপ্ত বস্তুর সংজ্ঞার উল্লেখ থাকলে পূর্ণ ১ নম্বর।
-                          </p>
-                        </div>
-
-                        <div className="p-3 rounded-xl border border-border bg-background">
-                          <div className="flex justify-between font-bold text-foreground">
-                            <span>(খ) অনুধাবনমূলক: চলন্ত বাসের যাত্রী নামলে সামনের দিকে ঝুঁকে পড়ে কেন?</span>
-                            <span className="text-emerald-600 font-extrabold">২.০ নম্বর</span>
-                          </div>
-                          <p className="text-[11px] text-muted-foreground mt-0.5">
-                            রুব্রিক: ১ম প্যারায় গতিজড়তার ধারণা (১ নম্বর) + ২য় প্যারায় পা ও ঊর্ধ্বাংশের আপেক্ষিক গতির ব্যাখ্যা (১ নম্বর)।
-                          </p>
-                        </div>
-
-                        <div className="p-3 rounded-xl border border-border bg-background">
-                          <div className="flex justify-between font-bold text-foreground">
-                            <span>(গ) প্রয়োগমূলক: সর্বোচ্চ উচ্চতায় পৌঁছানোর সময় নির্ণয় করো।</span>
-                            <span className="text-emerald-600 font-extrabold">৩.০ নম্বর</span>
-                          </div>
-                          <p className="text-[11px] text-muted-foreground mt-0.5">
-                            রুব্রিক: প্রাস সমীকরণ t = (v₀ sinθ)/g উল্লেখ (১ নম্বর) + মান বসানো (১ নম্বর) + সঠিক মান ও একক ২.০৪ সেকেন্ড (১ নম্বর)।
-                          </p>
-                        </div>
-
-                        <div className="p-3 rounded-xl border border-border bg-background">
-                          <div className="flex justify-between font-bold text-foreground">
-                            <span>(ঘ) উচ্চতর দক্ষতা: গতিশক্তি নিক্ষেপণ বিন্দুর গতিশক্তির কত অংশ হবে গাণিতিক বিশ্লেষণ?</span>
-                            <span className="text-emerald-600 font-extrabold">৪.০ নম্বর</span>
-                          </div>
-                          <p className="text-[11px] text-muted-foreground mt-0.5">
-                            রুব্রিক: আদি গতিশক্তি Ek₁ (১ নম্বর) + শীর্ষবিন্দুতে বেগ বিশ্লেষণ (১ নম্বর) + Ek₂ = 3/4 Ek₁ প্রতিপাদন (১ নম্বর) + সিদ্ধান্তমূলক মন্তব্য (১ নম্বর)।
-                          </p>
-                        </div>
+                        ))}
                       </div>
                     </div>
                   </div>
@@ -973,7 +1154,7 @@ export function LiveDemoSandbox() {
                     <div className="p-3.5 rounded-2xl bg-muted/30 border border-border space-y-1.5">
                       <span className="font-extrabold text-foreground text-xs">Question No 03 (Civil Service / CSS):</span>
                       <p className="text-muted-foreground leading-relaxed italic">
-                        Lessons emerged from 2025 Floods in the context of Climate Adaptation and Disaster Governance. Analyze institutional infrastructure vulnerabilities and propose strategic resilience mechanisms.
+                        {templates.floods.prompt}
                       </p>
                     </div>
 
@@ -982,41 +1163,15 @@ export function LiveDemoSandbox() {
                         Marking Scheme & Point-by-Point Distribution (20 Marks Total):
                       </span>
                       <div className="space-y-2">
-                        <div className="p-3 rounded-xl border border-border bg-background flex justify-between">
-                          <div>
-                            <span className="font-bold text-foreground">1. Introduction & UNGA Quote</span>
-                            <p className="text-[11px] text-muted-foreground">Thesis on flood recurrence and Antonio Guterres quote.</p>
+                        {templates.floods.rubrics.map((r) => (
+                          <div key={r.id} className="p-3 rounded-xl border border-border bg-background flex justify-between">
+                            <div>
+                              <span className="font-bold text-foreground">{r.criterion}</span>
+                              <p className="text-[11px] text-muted-foreground">{r.description}</p>
+                            </div>
+                            <span className="font-extrabold text-emerald-600">{r.maxPoints} Marks</span>
                           </div>
-                          <span className="font-extrabold text-emerald-600">4.0 Marks</span>
-                        </div>
-                        <div className="p-3 rounded-xl border border-border bg-background flex justify-between">
-                          <div>
-                            <span className="font-bold text-foreground">2. Climate Change & Water Drought Paradox</span>
-                            <p className="text-[11px] text-muted-foreground">15-20 days early rain forecast and water scarcity below 1000m³ per capita.</p>
-                          </div>
-                          <span className="font-extrabold text-emerald-600">4.0 Marks</span>
-                        </div>
-                        <div className="p-3 rounded-xl border border-border bg-background flex justify-between">
-                          <div>
-                            <span className="font-bold text-foreground">3. Infrastructure: Karachi Drainage Case Study</span>
-                            <p className="text-[11px] text-muted-foreground">Drainage capacity (30-40mm/hr) vs actual rainfall (300-400mm/hr).</p>
-                          </div>
-                          <span className="font-extrabold text-emerald-600">4.0 Marks</span>
-                        </div>
-                        <div className="p-3 rounded-xl border border-border bg-background flex justify-between">
-                          <div>
-                            <span className="font-bold text-foreground">4. Motorway M-5 Route Breakdown Map</span>
-                            <p className="text-[11px] text-muted-foreground">Hand-drawn map schematic showing transport breach and port isolation.</p>
-                          </div>
-                          <span className="font-extrabold text-emerald-600">4.0 Marks</span>
-                        </div>
-                        <div className="p-3 rounded-xl border border-border bg-background flex justify-between">
-                          <div>
-                            <span className="font-bold text-foreground">5. Disaster Governance & WMO Station Deficit</span>
-                            <p className="text-[11px] text-muted-foreground">82 weather stations across country (1/10,000km² vs 1/100km² benchmark).</p>
-                          </div>
-                          <span className="font-extrabold text-emerald-600">4.0 Marks</span>
-                        </div>
+                        ))}
                       </div>
                     </div>
                   </div>

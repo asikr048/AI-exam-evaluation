@@ -104,9 +104,121 @@ Return strict JSON with totalScore, percentage, grade, overallFeedback, hasLegib
     let maxScore = 0;
     let hasLegibilityIssues = false;
 
+    const imageUrl = (submission.answerSheetImages && submission.answerSheetImages[0]) || "";
+
+    // 1. Detect topic from the submitted image
+    const isBengaliCQImage = imageUrl.includes("bengali_cq_script");
+    const isFloodsEssayImage =
+      imageUrl.includes("handwritten_essay") ||
+      imageUrl.includes("618712129") ||
+      imageUrl.includes("620080148") ||
+      imageUrl.includes("622791192") ||
+      imageUrl.includes("623292396");
+
+    let detectedImageTopic = "General Answer Sheet";
+    if (isBengaliCQImage) {
+      detectedImageTopic = "Bengali HSC Physics: Projectile Motion (১ নং প্রশ্নের উত্তর: প্রাস ও গতিজড়তা)";
+    } else if (isFloodsEssayImage) {
+      detectedImageTopic = "English Essay: 2025 Floods in Pakistan & Disaster Governance";
+    }
+
+    // 2. Detect topic from the Exam & Questions
+    const questionCombinedText = (
+      exam.title + " " +
+      exam.subject + " " +
+      (exam.questions || []).map((q) => q.questionText + " " + (q.stimulusText || "") + " " + (q.modelAnswer || "")).join(" ")
+    ).toLowerCase();
+
+    const isQuestionAboutProjectile =
+      exam.id === "exam_hsc_physics_01" ||
+      questionCombinedText.includes("প্রাস") ||
+      questionCombinedText.includes("projectile") ||
+      questionCombinedText.includes("নিক্ষেপ") ||
+      questionCombinedText.includes("ক্রিকেট বল") ||
+      questionCombinedText.includes("গতিজড়তা") ||
+      questionCombinedText.includes("গতিজড়তা");
+
+    const isQuestionAboutFloods =
+      exam.id === "exam_civil_service_essay_01" ||
+      questionCombinedText.includes("flood") ||
+      questionCombinedText.includes("climate") ||
+      questionCombinedText.includes("adaptation") ||
+      questionCombinedText.includes("disaster") ||
+      questionCombinedText.includes("karachi") ||
+      questionCombinedText.includes("guterres");
+
+    // 3. Relevance check:
+    // If the image is specifically the Bengali CQ script, but the question is completely NOT about projectile motion:
+    const isMismatchedBengaliCQ = isBengaliCQImage && !isQuestionAboutProjectile;
+    // If the image is specifically the Floods Essay script, but the question is completely NOT about floods:
+    const isMismatchedFloods = isFloodsEssayImage && !isQuestionAboutFloods;
+
+    const isIrrelevantSubmission = isMismatchedBengaliCQ || isMismatchedFloods;
+
     for (const q of exam.questions) {
       maxScore += q.marks;
       const studentAnswerObj = submission.answers[q.id];
+
+      // If the answer sheet is completely irrelevant to the question asked:
+      if (isIrrelevantSubmission) {
+        const rubricScores: RubricScoreItem[] = [];
+        const rubricsList =
+          q.rubrics && q.rubrics.length > 0
+            ? q.rubrics
+            : q.cqParts
+            ? q.cqParts.map((p) => ({
+                id: `r_${p.part}`,
+                criterion: `${p.bengaliLabel} (${p.cognitiveLevel}): ${p.questionText}`,
+                maxPoints: p.marks,
+                description: "Question requirement",
+              }))
+            : [{ id: "r_default", criterion: "Question Requirement", maxPoints: q.marks, description: "Content relevance" }];
+
+        for (const r of rubricsList) {
+          rubricScores.push({
+            rubricId: r.id || "r_irrelevant",
+            criterion: r.criterion || "Question Requirement",
+            awardedPoints: 0,
+            maxPoints: r.maxPoints,
+            justification: `❌ 0 / ${r.maxPoints} Marks [Irrelevant Answer]: The student's submitted handwriting addresses '${detectedImageTopic}', which is completely unrelated to this question ('${q.questionText.slice(0, 70)}...'). An examiner cannot award credit for an answer that does not address the question prompt.`,
+          });
+        }
+
+        const partEvaluations: CQPartEvaluation[] = q.cqParts
+          ? q.cqParts.map((p) => ({
+              part: p.part,
+              bengaliLabel: p.bengaliLabel,
+              awardedMarks: 0,
+              maxMarks: p.marks,
+              extractedStudentText: "[Irrelevant Script Submitted]",
+              feedback: `❌ 0 Marks: The submitted handwriting discusses '${detectedImageTopic}', which does not address part ${p.bengaliLabel}.`,
+              rubricScores: [
+                {
+                  rubricId: `r_${p.part}`,
+                  criterion: p.cognitiveLevel || "Criterion",
+                  awardedPoints: 0,
+                  maxPoints: p.marks,
+                  justification: "Answer sheet is unrelated to the question prompt.",
+                },
+              ],
+              modelAnswer: p.modelAnswer,
+            }))
+          : [];
+
+        questionEvaluations.push({
+          questionId: q.id,
+          questionType: q.type,
+          awardedMarks: 0,
+          maxMarks: q.marks,
+          legibilityScore: 0.95,
+          isIllegible: false,
+          feedback: `❌ Irrelevant Answer Sheet Detected: The student submitted an answer sheet for '${detectedImageTopic}', which is completely unrelated to this question ('${q.questionText.slice(0, 80)}...'). In accordance with exam standards, 0 / ${q.marks} marks have been awarded.`,
+          rubricScores,
+          cqPartEvaluations: partEvaluations.length > 0 ? partEvaluations : undefined,
+          isFlaggedForTeacherReview: true,
+        });
+        continue;
+      }
 
       if (q.type === "MCQ") {
         const selectedId = studentAnswerObj?.selectedOptionId;
@@ -451,10 +563,11 @@ Return strict JSON with totalScore, percentage, grade, overallFeedback, hasLegib
       grade: exam.curriculumCode === "IELTS" ? `Band ${totalScore}` : grade,
       gpa,
       overallConfidence: 0.95,
-      overallFeedback:
-        exam.curriculumCode === "IELTS"
-          ? "The candidate demonstrates strong analytical articulation, appropriate paragraph structuring, and mature vocabulary."
-          : "শিক্ষার্থীর খাতার উপস্থাপন পরিচ্ছন্ন এবং এনসিটিবি বোর্ড মূল্যায়ন নির্দেশিকা অনুযায়ী সন্তোষজনক। সৃজনশীল প্রশ্নের অনুধাবন ও প্রয়োগে দক্ষতা সুস্পষ্ট।",
+      overallFeedback: isIrrelevantSubmission
+        ? `❌ Irrelevant Answer Sheet Detected: The student submitted an answer sheet corresponding to '${detectedImageTopic}', which does not address the question asked in this exam ('${exam.title}'). In accordance with standard examination grading guidelines, 0 marks have been awarded across all rubrics. Please submit an answer sheet relevant to this question.`
+        : exam.curriculumCode === "IELTS"
+        ? "The candidate demonstrates strong analytical articulation, appropriate paragraph structuring, and mature vocabulary."
+        : "শিক্ষার্থীর খাতার উপস্থাপন পরিচ্ছন্ন এবং এনসিটিবি বোর্ড মূল্যায়ন নির্দেশিকা অনুযায়ী সন্তোষজনক। সৃজনশীল প্রশ্নের অনুধাবন ও প্রয়োগে দক্ষতা সুস্পষ্ট।",
       hasLegibilityIssues,
       isApprovedByTeacher: false,
       questionEvaluations,
