@@ -1,4 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
+import fs from "fs";
+import path from "path";
 import { store } from "../store";
 import {
   CQPartEvaluation,
@@ -46,7 +48,7 @@ export class AIEvaluationGateway {
           modelId: activeModelId,
         });
       } catch (err) {
-        console.warn("Live Gemini evaluation failed, falling back to local simulation:", err);
+        console.warn("Live Gemini evaluation failed, falling back to local engine:", err);
       }
     }
 
@@ -55,7 +57,7 @@ export class AIEvaluationGateway {
   }
 
   /**
-   * Live Google Gemini Evaluation using @google/genai SDK
+   * Live Google Gemini Evaluation using @google/genai SDK with Multimodal Vision
    */
   private static async evaluateWithGemini(params: {
     exam: Exam;
@@ -66,23 +68,136 @@ export class AIEvaluationGateway {
     const ai = new GoogleGenAI({ apiKey: params.apiKey });
     const model = params.modelId || "gemini-3.8-flash";
 
-    const promptText = `You are an expert exam examiner for ${params.exam.curriculumCode} curriculum (${params.exam.title}).
-Evaluate the student's submission against the questions and marking rubrics.
-Return strict JSON with totalScore, percentage, grade, overallFeedback, hasLegibilityIssues, and questionEvaluations.`;
+    const contents: any[] = [];
+
+    // 1. Convert answer sheet images into multimodal inlineData parts
+    const images = params.submission.answerSheetImages || [];
+    for (const img of images) {
+      if (typeof img === "string" && img.length > 0) {
+        if (img.startsWith("data:")) {
+          const match = img.match(/^data:([^;]+);base64,(.+)$/);
+          if (match) {
+            contents.push({
+              inlineData: {
+                mimeType: match[1],
+                data: match[2],
+              },
+            });
+          }
+        } else if (img.startsWith("/") || img.startsWith("./")) {
+          try {
+            const cleanRel = img.replace(/^\//, "").split("?")[0];
+            const fullPath = path.join(process.cwd(), "public", cleanRel);
+            if (fs.existsSync(fullPath)) {
+              const fileBuffer = fs.readFileSync(fullPath);
+              const ext = path.extname(fullPath).toLowerCase();
+              const mimeType = ext === ".svg" ? "image/svg+xml" : ext === ".png" ? "image/png" : "image/jpeg";
+              contents.push({
+                inlineData: {
+                  mimeType,
+                  data: fileBuffer.toString("base64"),
+                },
+              });
+            }
+          } catch (e) {
+            console.warn("Could not read local image for Gemini vision:", e);
+          }
+        }
+      }
+    }
+
+    // 2. Structured prompt for examiner
+    const promptText = `You are a strict, professional academic examiner evaluating a student's handwritten answer sheet.
+
+Exam Details:
+- Title: ${params.exam.title}
+- Subject: ${params.exam.subject}
+- Curriculum: ${params.exam.curriculumCode}
+- Total Marks: ${params.exam.totalMarks}
+
+Questions and Rubric Points:
+${JSON.stringify(
+  params.exam.questions.map((q) => ({
+    id: q.id,
+    type: q.type,
+    marks: q.marks,
+    questionText: q.questionText,
+    stimulusText: q.stimulusText,
+    modelAnswer: q.modelAnswer,
+    rubrics: q.rubrics,
+    cqParts: q.cqParts,
+  })),
+  null,
+  2
+)}
+
+Instructions:
+1. Examine the student's handwritten answer sheet image carefully using Vision OCR.
+2. Determine if the student's handwriting addresses this exam. If completely irrelevant, award 0 marks, grade F, and explain the mismatch.
+3. For each question and each rubric point, award points strictly within maxPoints. Provide an objective, clear justification citing what the student wrote or missed.
+4. Calculate totalScore as the sum of awarded points, percentage (0-100), and appropriate grade (A+, A, A-, B, C, D, or F).
+5. Output ONLY a valid JSON object matching this schema:
+{
+  "totalScore": number,
+  "maxScore": number,
+  "percentage": number,
+  "grade": string,
+  "gpa": number,
+  "overallConfidence": number,
+  "overallFeedback": string,
+  "hasLegibilityIssues": boolean,
+  "questionEvaluations": [
+    {
+      "questionId": string,
+      "questionType": string,
+      "awardedMarks": number,
+      "maxMarks": number,
+      "legibilityScore": number,
+      "isIllegible": boolean,
+      "feedback": string,
+      "improvementTips": string,
+      "extractedStudentText": string,
+      "rubricScores": [
+        {
+          "rubricId": string,
+          "criterion": string,
+          "awardedPoints": number,
+          "maxPoints": number,
+          "justification": string
+        }
+      ]
+    }
+  ]
+}`;
+
+    contents.push(promptText);
 
     const response = await ai.models.generateContent({
       model: model,
-      contents: promptText,
+      contents,
+      config: {
+        responseMimeType: "application/json",
+      },
     });
 
-    // If response parsed, return; else fallback gracefully
     try {
-      const parsed = JSON.parse(response.text || "{}");
-      if (parsed.totalScore !== undefined) {
-        return parsed as EvaluationResult;
+      let jsonText = (response.text || "").trim();
+      jsonText = jsonText.replace(/^```json\s*/, "").replace(/```$/, "").trim();
+      const parsed = JSON.parse(jsonText);
+      if (parsed.totalScore !== undefined && parsed.questionEvaluations) {
+        return {
+          id: `eval_${Date.now()}`,
+          submissionId: params.submission.id,
+          evaluatedBy: `${model} (Gemini Multimodal Vision API)`,
+          aiModelId: model,
+          aiProvider: "google",
+          evaluatedAt: new Date().toISOString(),
+          isApprovedByTeacher: false,
+          ...parsed,
+        };
       }
-    } catch {
-      // Fall through to intelligent engine
+    } catch (parseErr) {
+      console.warn("Failed to parse Gemini JSON output:", parseErr);
     }
 
     return this.evaluateWithIntelligentEngine(params.exam, params.submission, model, "google");
@@ -108,6 +223,8 @@ Return strict JSON with totalScore, percentage, grade, overallFeedback, hasLegib
 
     // 1. Detect topic from the submitted image
     const isBengaliCQImage = imageUrl.includes("bengali_cq_script");
+    const isMathCQImage = imageUrl.includes("math_cq_script");
+    const isChemCQImage = imageUrl.includes("chemistry_cq_script");
     const isFloodsEssayImage =
       imageUrl.includes("handwritten_essay") ||
       imageUrl.includes("618712129") ||
@@ -118,8 +235,12 @@ Return strict JSON with totalScore, percentage, grade, overallFeedback, hasLegib
     let detectedImageTopic = "General Answer Sheet";
     if (isBengaliCQImage) {
       detectedImageTopic = "Bengali HSC Physics: Projectile Motion (১ নং প্রশ্নের উত্তর: প্রাস ও গতিজড়তা)";
+    } else if (isMathCQImage) {
+      detectedImageTopic = "SSC Higher Mathematics: Coordinate Geometry (২ নং প্রশ্নের উত্তর: স্থানাঙ্ক জ্যামিতি)";
+    } else if (isChemCQImage) {
+      detectedImageTopic = "HSC Chemistry: Faraday's Law & Electrochemistry (৩ নং প্রশ্নের উত্তর: তড়িৎ রসায়ন)";
     } else if (isFloodsEssayImage) {
-      detectedImageTopic = "English Essay: 2025 Floods in Pakistan & Disaster Governance";
+      detectedImageTopic = "English Essay: Climate Change & Environmental Governance";
     }
 
     // 2. Detect topic from the Exam & Questions
@@ -138,22 +259,33 @@ Return strict JSON with totalScore, percentage, grade, overallFeedback, hasLegib
       questionCombinedText.includes("গতিজড়তা") ||
       questionCombinedText.includes("গতিজড়তা");
 
-    const isQuestionAboutFloods =
-      exam.id === "exam_civil_service_essay_01" ||
-      questionCombinedText.includes("flood") ||
-      questionCombinedText.includes("climate") ||
-      questionCombinedText.includes("adaptation") ||
-      questionCombinedText.includes("disaster") ||
-      questionCombinedText.includes("karachi") ||
-      questionCombinedText.includes("guterres");
+    const isQuestionAboutMath =
+      questionCombinedText.includes("উচ্চতর গণিত") ||
+      questionCombinedText.includes("স্থানাঙ্ক") ||
+      questionCombinedText.includes("ত্রিভুজ") ||
+      questionCombinedText.includes("রম্বস") ||
+      questionCombinedText.includes("ঢাল") ||
+      questionCombinedText.includes("সমান্তরাল");
 
-    // 3. Relevance check:
-    // If the image is specifically the Bengali CQ script, but the question is completely NOT about projectile motion:
+    const isQuestionAboutChem =
+      questionCombinedText.includes("রসায়ন") ||
+      questionCombinedText.includes("ফ্যারাডে") ||
+      questionCombinedText.includes("তড়িৎ") ||
+      questionCombinedText.includes("ক্যাথোড") ||
+      questionCombinedText.includes("লবণ সেতু") ||
+      questionCombinedText.includes("নার্নস্ট");
+
+    // Only apply predefined mismatch checks if one of the specific sample images is selected in mock mode
+    // (If user uploaded a custom photo in Create Question, it is NEVER flagged as an irrelevant sample!)
+    const isCustomUploadedPhoto =
+      !isBengaliCQImage && !isMathCQImage && !isChemCQImage && !isFloodsEssayImage;
+
     const isMismatchedBengaliCQ = isBengaliCQImage && !isQuestionAboutProjectile;
-    // If the image is specifically the Floods Essay script, but the question is completely NOT about floods:
-    const isMismatchedFloods = isFloodsEssayImage && !isQuestionAboutFloods;
+    const isMismatchedMathCQ = isMathCQImage && !isQuestionAboutMath;
+    const isMismatchedChemCQ = isChemCQImage && !isQuestionAboutChem;
 
-    const isIrrelevantSubmission = isMismatchedBengaliCQ || isMismatchedFloods;
+    const isIrrelevantSubmission =
+      !isCustomUploadedPhoto && (isMismatchedBengaliCQ || isMismatchedMathCQ || isMismatchedChemCQ);
 
     for (const q of exam.questions) {
       maxScore += q.marks;

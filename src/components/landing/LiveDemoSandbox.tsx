@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useRef, useMemo } from "react";
-import Image from "next/image";
+import { useState, useRef } from "react";
 import {
   Sparkles,
   CheckCircle2,
@@ -24,6 +23,7 @@ import {
   Check,
   Edit3,
   RefreshCw,
+  Sliders,
 } from "lucide-react";
 import { EvaluationResult } from "@/lib/types";
 
@@ -34,8 +34,247 @@ interface CustomRubricItem {
   description: string;
 }
 
+interface MockExamDefinition {
+  id: string;
+  badge: string;
+  title: string;
+  subject: string;
+  curriculum: string;
+  totalMarks: number;
+  sampleImage: string;
+  imageLabel: string;
+  stimulus: string;
+  prompt: string;
+  questionParts: {
+    label: string;
+    level: string;
+    marks: number;
+    text: string;
+  }[];
+  modelAnswer: string;
+  rubrics: {
+    id: string;
+    criterion: string;
+    maxPoints: number;
+    description: string;
+  }[];
+}
+
+const mockExams: Record<string, MockExamDefinition> = {
+  physics: {
+    id: "mock_physics",
+    badge: "🇧🇩 HSC Physics CQ",
+    title: "HSC Physics: গতিবিদ্যা ও প্রাস সৃজনশীল প্রশ্ন (১০ নম্বর)",
+    subject: "পদার্থবিজ্ঞান ১ম পত্র",
+    curriculum: "HSC",
+    totalMarks: 10,
+    sampleImage: "/samples/bengali_cq_script.svg",
+    imageLabel: "Bengali HSC Physics CQ Khata (Board Lined Paper)",
+    stimulus:
+      "২০ মিটার উঁচু একটি দালানের ছাদ থেকে একটি ক্রিকেট বলকে আনুভূমিকের সাথে ৩০° কোণে ৪০ মি./সে. বেগে উপরের দিকে তির্যকভাবে নিক্ষেপ করা হলো। অভিকর্ষজ ত্বরণ g = ৯.৮ মি./সে.²।",
+    prompt:
+      "২০ মিটার উঁচু একটি দালানের ছাদ থেকে একটি ক্রিকেট বলকে আনুভূমিকের সাথে ৩০° কোণে ৪০ মি./সে. বেগে উপরের দিকে তির্যকভাবে নিক্ষেপ করা হলো। অভিকর্ষজ ত্বরণ g = ৯.৮ মি./সে.²। (ক) প্রাস কী? (খ) চলন্ত বাস থেকে নামলে যাত্রী সামনের দিকে ঝুঁকে পড়ে কেন? (গ) ক্রিকেট বলটির সর্বোচ্চ উচ্চতায় পৌঁছানোর সময় নির্ণয় করো। (ঘ) সর্বোচ্চ বিন্দুতে গতিশক্তি নিক্ষেপণ বিন্দুর গতিশক্তির কত অংশ হবে গাণিতিক বিশ্লেষণ করো।",
+    questionParts: [
+      { label: "(ক)", level: "জ্ঞানমূলক", marks: 1.0, text: "প্রাস কী?" },
+      { label: "(খ)", level: "অনুধাবনমূলক", marks: 2.0, text: "চলন্ত বাস থেকে হঠাৎ নামলে যাত্রী সামনের দিকে ঝুঁকে পড়ে কেন?" },
+      { label: "(গ)", level: "প্রয়োগমূলক", marks: 3.0, text: "ক্রিকেট বলটির সর্বোচ্চ উচ্চতায় পৌঁছানোর সময় নির্ণয় করো।" },
+      {
+        label: "(ঘ)",
+        level: "উচ্চতর দক্ষতা",
+        marks: 4.0,
+        text: "সর্বোচ্চ বিন্দুতে বলটির গতিশক্তি নিক্ষেপণ বিন্দুর গতিশক্তির কত অংশ হবে গাণিতিক বিশ্লেষণ করো।",
+      },
+    ],
+    modelAnswer:
+      "(ক) প্রাস: আনুভূমিকের সাথে কোনো কোণে মহাশূন্যে বা বাতাসে নিক্ষিপ্ত বস্তুকে প্রাস বলে।\n(খ) গতিজড়তার কারণে। বাসের সমান গতিবেগ লাভ করে; ভূমিতে পা স্থির হলেও শরীরের ঊর্ধ্বাংশ পূর্বের বেগ বজায় রেখে সামনে এগিয়ে যেতে চায়।\n(গ) t = (v₀ sinθ)/g = (40 × sin 30°)/9.8 = 20/9.8 = 2.041 s ≈ 2.04 সেকেন্ড।\n(ঘ) Ek₁ = ½ m v₀² এবং শীর্ষবিন্দুতে অনুভূমিক বেগ vx = v₀ cos 30°। Ek₂ = ½ m (v₀ cos 30°)² = ¾ Ek₁। সর্বোচ্চ বিন্দুতে গতিশক্তি ¾ গুণ।",
+    rubrics: [
+      {
+        id: "r_p_1",
+        criterion: "(ক) জ্ঞানমূলক: প্রাসের সঠিক সংজ্ঞা",
+        maxPoints: 1.0,
+        description: "তির্যকভাবে মহাশূন্যে নিক্ষিপ্ত বস্তুর সংজ্ঞার উল্লেখ থাকলে পূর্ণ ১ নম্বর।",
+      },
+      {
+        id: "r_p_2",
+        criterion: "(খ) অনুধাবনমূলক: চলন্ত বাস ও গতিজড়তা ব্যাখ্যা",
+        maxPoints: 2.0,
+        description: "১ম প্যারায় গতিজড়তার ধারণা (১) + ২য় প্যারায় পা ও ঊর্ধ্বাংশের আপেক্ষিক গতি ব্যাখ্যা (১)।",
+      },
+      {
+        id: "r_p_3",
+        criterion: "(গ) প্রয়োগমূলক: সময় সমীকরণ ও ২.০৪ সেকেন্ড মান",
+        maxPoints: 3.0,
+        description: "প্রাস সমীকরণ t = (v₀ sinθ)/g (১) + মান বসানো (১) + চূড়ান্ত এককসহ মান ২.০৪ s (১)।",
+      },
+      {
+        id: "r_p_4",
+        criterion: "(ঘ) উচ্চতর দক্ষতা: গতিশক্তি ¾ গুণ প্রতিপাদন ও সার্বিক সিদ্ধান্ত",
+        maxPoints: 4.0,
+        description: "আদি গতিশক্তি Ek₁ (১) + বেগ বিশ্লেষণ (১) + Ek₂ = ¾ Ek₁ প্রতিপাদন (১) + সিদ্ধান্ত (১)।",
+      },
+    ],
+  },
+  math: {
+    id: "mock_math",
+    badge: "📐 SSC Higher Math CQ",
+    title: "SSC Higher Mathematics: স্থানাঙ্ক জ্যামিতি ও ক্ষেত্রফল (১০ নম্বর)",
+    subject: "উচ্চতর গণিত",
+    curriculum: "SSC",
+    totalMarks: 10,
+    sampleImage: "/samples/math_cq_script.svg",
+    imageLabel: "SSC Higher Math CQ Khata (Coordinate Geometry)",
+    stimulus:
+      "একটি ত্রিভুজের তিনটি শীর্ষবিন্দু যথাক্রমে A(1, 2), B(4, 6) এবং C(7, 2)। চতুর্থ একটি বিন্দু D(4, -2)।",
+    prompt:
+      "একটি ত্রিভুজের তিনটি শীর্ষবিন্দু যথাক্রমে A(1, 2), B(4, 6) এবং C(7, 2)। চতুর্থ একটি বিন্দু D(4, -2)। (ক) মূলবিন্দু O(0, 0) ও P(3, 4) বিন্দুর দূরত্ব নির্ণয় করো। (খ) দুটি সরলরেখা পরস্পর সমান্তরাল হওয়ার জ্যামিতিক শর্ত বিশ্লেষণ করো। (গ) ত্রিভুজ ABC এর ক্ষেত্রফল নির্ণয় করো। (ঘ) চতুর্থ শীর্ষবিন্দু D(4, -2) হলে চতুর্ভুজ ABCD একটি রম্বস না সামান্তরিক—গাণিতিক প্রতিপাদন করো।",
+    questionParts: [
+      { label: "(ক)", level: "জ্ঞানমূলক", marks: 1.0, text: "মূলবিন্দু O(0, 0) ও P(3, 4) বিন্দুর দূরত্ব নির্ণয় করো।" },
+      { label: "(খ)", level: "অনুধাবনমূলক", marks: 2.0, text: "দুটি সরলরেখা পরস্পর সমান্তরাল হওয়ার জ্যামিতিক শর্ত বিশ্লেষণ করো।" },
+      { label: "(গ)", level: "প্রয়োগমূলক", marks: 3.0, text: "ত্রিভুজ ABC এর ক্ষেত্রফল নির্ণয় করো।" },
+      {
+        label: "(ঘ)",
+        level: "উচ্চতর দক্ষতা",
+        marks: 4.0,
+        text: "চতুর্থ শীর্ষবিন্দু D(4, -2) হলে চতুর্ভুজ ABCD একটি রম্বস না সামান্তরিক—গাণিতিক প্রতিপাদন করো।",
+      },
+    ],
+    modelAnswer:
+      "(ক) দূরত্ব সূত্র d = √{(x₂-x₁)² + (y₂-y₁)²} = √{(3-0)² + (4-0)²} = √25 = 5 একক।\n(খ) সমীকরণ y = m₁x + c₁ এবং y = m₂x + c₂ হলে রেখা দুটি সমান্তরাল হবে যদি m₁ = m₂ হয়।\n(গ) ΔABC = ½ | (1×6 + 4×2 + 7×2) - (2×4 + 6×7 + 2×1) | = ½ | 28 - 52 | = 12 বর্গ একক।\n(ঘ) বাহুর দৈর্ঘ্য: AB = BC = CD = DA = 5 একক। কর্ণ AC = 6 একক, কর্ণ BD = 8 একক। বাহু সমান ও কর্ণ অসমান (AC ≠ BD), তাই এটি একটি রম্বস।",
+    rubrics: [
+      {
+        id: "r_m_1",
+        criterion: "(ক) জ্ঞানমূলক: মূলবিন্দু থেকে দূরত্ব ৫ একক",
+        maxPoints: 1.0,
+        description: "দূরত্ব সূত্র প্রয়োগ ও চূড়ান্ত মান ৫ একক নির্ণয়।",
+      },
+      {
+        id: "r_m_2",
+        criterion: "(খ) অনুধাবনমূলক: সমান্তরাল শর্ত ঢালদ্বয় সমান m₁ = m₂",
+        maxPoints: 2.0,
+        description: "সমান্তরাল রেখার জ্যামিতিক কোণ ও ঢালের সমতার শর্ত ব্যাখ্যা।",
+      },
+      {
+        id: "r_m_3",
+        criterion: "(গ) প্রয়োগমূলক: শীর্ষবিন্দু দিয়ে ত্রিভুজের ক্ষেত্রফল ১২ বর্গ একক",
+        maxPoints: 3.0,
+        description: "স্থানাঙ্ক পদ্ধতিতে নির্ণায়ক সূত্র সাজানো ও ক্ষেত্রফল ১২ বর্গ একক নির্ণয়।",
+      },
+      {
+        id: "r_m_4",
+        criterion: "(ঘ) উচ্চতর দক্ষতা: বাহু ও কর্ণ তুলনা করে রম্বস প্রতিপাদন",
+        maxPoints: 4.0,
+        description: "চার বাহু সমান (৫ একক) ও কর্ণদ্বয় অসমান (৬ ও ৮ একক) দেখিয়ে রম্বস প্রমাণ।",
+      },
+    ],
+  },
+  chemistry: {
+    id: "mock_chemistry",
+    badge: "🧪 HSC Chemistry CQ",
+    title: "HSC Chemistry: তড়িৎ রসায়ন ও ফ্যারাডের সূত্র (১০ নম্বর)",
+    subject: "রসায়ন ২য় পত্র",
+    curriculum: "HSC",
+    totalMarks: 10,
+    sampleImage: "/samples/chemistry_cq_script.svg",
+    imageLabel: "HSC Chemistry 2nd Paper CQ Khata (Electrochemistry)",
+    stimulus:
+      "CuSO₄ দ্রবণের মধ্য দিয়ে 2.5 A তড়িৎ প্রবাহ 12 মিনিট ধরে চালনা করা হলো। Cu এর পারমাণবিক ভর = 63.5 g/mol, যোজ্যতা = 2, 1 F = 96500 C।",
+    prompt:
+      "CuSO₄ দ্রবণের মধ্য দিয়ে 2.5 A তড়িৎ প্রবাহ 12 মিনিট ধরে চালনা করা হলো। Cu এর পারমাণবিক ভর = 63.5 g/mol, যোজ্যতা = 2, 1 F = 96500 C। (ক) তড়িৎ রাসায়নিক তুল্যাঙ্ক (Z) এর সংজ্ঞা দাও। (খ) গ্যালভানিক কোষে লবণ সেতুর অপরিহার্য ভূমিকা ব্যাখ্যা করো। (গ) উদ্দীপক অনুসারে ক্যাথোডে কত গ্রাম তামা (Cu) সঞ্চিত হবে নির্ণয় করো। (ঘ) Zn(s) | Zn²⁺(0.1M) || Cu²⁺(0.01M) | Cu(s) কোষটির EMF ও স্বতঃস্ফূর্ততা গাণিতিকভাবে বিশ্লেষণ করো।",
+    questionParts: [
+      { label: "(ক)", level: "জ্ঞানমূলক", marks: 1.0, text: "তড়িৎ রাসায়নিক তুল্যাঙ্ক (Z) এর সংজ্ঞা দাও।" },
+      { label: "(খ)", level: "অনুধাবনমূলক", marks: 2.0, text: "গ্যালভানিক কোষে লবণ সেতুর অপরিহার্য ভূমিকা ব্যাখ্যা করো।" },
+      { label: "(গ)", level: "প্রয়োগমূলক", marks: 3.0, text: "উদ্দীপক অনুসারে ক্যাথোডে কত গ্রাম তামা (Cu) সঞ্চিত হবে নির্ণয় করো।" },
+      {
+        label: "(ঘ)",
+        level: "উচ্চতর দক্ষতা",
+        marks: 4.0,
+        text: "Zn(s) | Zn²⁺(0.1M) || Cu²⁺(0.01M) | Cu(s) কোষটির EMF ও স্বতঃস্ফূর্ততা গাণিতিকভাবে বিশ্লেষণ করো।",
+      },
+    ],
+    modelAnswer:
+      "(ক) তড়িৎ রাসায়নিক তুল্যাঙ্ক: 1 কুলম্ব বিদ্যুৎ চালনা করলে তড়িৎদ্বারে যে পরিমাণ পদার্থ জমা বা দ্রবীভূত হয়।\n(খ) লবণ সেতু দুটি অর্ধকোষে তড়িৎ নিরপেক্ষতা রক্ষা করে এবং বর্তনী সচল রাখে।\n(গ) W = (M·I·t)/(e·F) = (63.5 × 2.5 × 720)/(2 × 96500) = 0.5922 g ≈ 0.59 g।\n(ঘ) E°cell = 0.34 - (-0.76) = +1.10 V। নার্নস্ট সমীকরণ মতে Ecell = 1.10 - (0.0591/2)log(0.1/0.01) = 1.07 V > 0, সুতরাং বিক্রিয়া স্বতঃস্ফূর্ত।",
+    rubrics: [
+      {
+        id: "r_c_1",
+        criterion: "(ক) জ্ঞানমূলক: তড়িৎ রাসায়নিক তুল্যাঙ্ক সঠিক সংজ্ঞা",
+        maxPoints: 1.0,
+        description: "১ কুলম্ব তড়িৎ প্রবাহ ও সঞ্চিত পদার্থের সংজ্ঞার নির্ভুল উল্লেখ।",
+      },
+      {
+        id: "r_c_2",
+        criterion: "(খ) অনুধাবনমূলক: লবণ সেতুর সংযোগ ও নিরপেক্ষতা রক্ষা",
+        maxPoints: 2.0,
+        description: "বর্তনী সচল রাখা ও আয়ন প্রবাহের মাধ্যমে তড়িৎ নিরপেক্ষতা ব্যাখ্যা।",
+      },
+      {
+        id: "r_c_3",
+        criterion: "(গ) প্রয়োগমূলক: ফ্যারাডের সূত্রে সঞ্চিত তামা ০.৫৯ গ্রাম",
+        maxPoints: 3.0,
+        description: "সূত্র W = (M·I·t)/(e·F) লিখে মান বসানো ও সঠিক এককসহ ০.৫৯ গ্রাম হিসাব।",
+      },
+      {
+        id: "r_c_4",
+        criterion: "(ঘ) উচ্চতর দক্ষতা: নার্নস্ট সমীকরণে EMF ১.০৭ V ও স্বতঃস্ফূর্ততা",
+        maxPoints: 4.0,
+        description: "E°cell নির্ণয় (১) + নার্নস্ট সমীকরণ প্রয়োগ (২) + স্বতঃস্ফূর্ততা সিদ্ধান্ত (১)।",
+      },
+    ],
+  },
+  english: {
+    id: "mock_english",
+    badge: "📝 HSC English 1st Paper",
+    title: "HSC English 1st Paper: Analytical Composition (১০ নম্বর)",
+    subject: "English 1st Paper",
+    curriculum: "HSC",
+    totalMarks: 10,
+    sampleImage: "/samples/handwritten_essay_intro.jpg",
+    imageLabel: "Authentic Handwritten English Exam Paper",
+    stimulus:
+      "Write an analytical composition on 'Climate Change, Disaster Preparedness and Community Resilience'.",
+    prompt:
+      "Write an analytical composition on 'Climate Change, Disaster Preparedness and Community Resilience'. Include: (1) Strong thesis statement with introductory perspective, (2) Analysis of extreme seasonal climate shifts, and (3) Institutional governance recommendations.",
+    questionParts: [
+      { label: "1.", level: "Introduction", marks: 2.5, text: "Introduce global climate realities and state a clear analytical thesis." },
+      { label: "2.", level: "Analysis", marks: 2.5, text: "Examine seasonal climate shifts and structural infrastructure challenges." },
+      { label: "3.", level: "Governance", marks: 2.5, text: "Recommend proactive institutional disaster mitigation mechanisms." },
+      { label: "4.", level: "Language", marks: 2.5, text: "Maintain academic vocabulary, coherent paragraph transitions, and syntax." },
+    ],
+    modelAnswer:
+      "In recent decades, escalating global climate disruptions have made recurring natural disasters an unavoidable reality. A comprehensive disaster response framework demands accurate early-warning systems, climate-resilient civil infrastructure, and proactive governance rather than reactive emergency relief.",
+    rubrics: [
+      {
+        id: "r_e_1",
+        criterion: "Thesis Statement & Contextual Introduction",
+        maxPoints: 2.5,
+        description: "Clearly defines thesis and establishes urgency with academic tone.",
+      },
+      {
+        id: "r_e_2",
+        criterion: "Analytical Substance & Climate Impact",
+        maxPoints: 2.5,
+        description: "Coherent development of environmental arguments with cause-and-effect logic.",
+      },
+      {
+        id: "r_e_3",
+        criterion: "Policy & Disaster Mitigation Recommendations",
+        maxPoints: 2.5,
+        description: "Proposes actionable governance solutions and structural preparedness.",
+      },
+      {
+        id: "r_e_4",
+        criterion: "Lexical Resource & Grammatical Precision",
+        maxPoints: 2.5,
+        description: "Rich vocabulary, compound-complex sentences, and high syntactic accuracy.",
+      },
+    ],
+  },
+};
+
 export function LiveDemoSandbox() {
-  const [selectedPreset, setSelectedPreset] = useState<"cq" | "essay" | "custom">("cq");
+  // Main two modes: "mock" (Preset Mock Exams) or "create" (Create Custom Question & Evaluate)
+  const [demoMode, setDemoMode] = useState<"mock" | "create">("mock");
+  const [selectedMockKey, setSelectedMockKey] = useState<string>("physics");
+
   const [isEvaluating, setIsEvaluating] = useState(false);
   const [progressStep, setProgressStep] = useState(0);
   const [evaluationResult, setEvaluationResult] = useState<EvaluationResult | null>(null);
@@ -43,245 +282,61 @@ export function LiveDemoSandbox() {
   const [showQuestionModal, setShowQuestionModal] = useState(false);
   const [showImageZoomModal, setShowImageZoomModal] = useState(false);
 
-  // Active answer sheet photo
-  const [selectedSampleImage, setSelectedSampleImage] = useState<string>("/samples/bengali_cq_script.svg");
+  // Uploaded photo state (works in both mock and create modes)
   const [customImageBase64, setCustomImageBase64] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
-  // Templates for questions
-  const templates = {
-    projectile: {
-      title: "HSC Physics: গতিবিদ্যা ও প্রাস সৃজনশীল প্রশ্ন (১০ নম্বর)",
-      curriculum: "HSC",
-      prompt:
-        "২০ মিটার উঁচু একটি দালানের ছাদ থেকে একটি ক্রিকেট বলকে আনুভূমিকের সাথে ৩০° কোণে ৪০ মি./সে. বেগে উপরের দিকে তির্যকভাবে নিক্ষেপ করা হলো। অভিকর্ষজ ত্বরণ g = ৯.৮ মি./সে.²। (ক) প্রাস কী? (খ) চলন্ত বাস থেকে লাফ দিলে যাত্রী সামনের দিকে ঝুঁকে পড়ে কেন? (গ) ক্রিকেট বলটির সর্বোচ্চ উচ্চতায় পৌঁছানোর সময় নির্ণয় করো। (ঘ) সর্বোচ্চ বিন্দুতে গতিশক্তি নিক্ষেপণ বিন্দুর গতিশক্তির কত অংশ হবে গাণিতিক বিশ্লেষণ করো।",
-      modelAnswer:
-        "(ক) প্রাস: আনুভূমিকের সাথে কোনো কোণে মহাশূন্যে নিক্ষিপ্ত বস্তুকে প্রাস বলে।\n(খ) গতিজড়তার কারণে। বাসের সমান বেগ লাভ করে, ভূমিতে পা স্থির হলেও শরীরের ঊর্ধ্বাংশ পূর্বের বেগ বজায় রেখে চলতে চায়।\n(গ) t = (v₀ sinθ)/g = (40 × sin 30°)/9.8 = 2.041 s ≈ 2.04 সেকেন্ড।\n(ঘ) Ek₁ = ½ m v₀² এবং শীর্ষবিন্দুতে v_x = v₀ cos 30°। Ek₂ = ½ m (v₀ cos 30°)² = ¾ Ek₁। সর্বোচ্চ বিন্দুতে গতিশক্তি ¾ গুণ।",
-      rubrics: [
-        {
-          id: "r_p_1",
-          criterion: "(ক) জ্ঞানমূলক: প্রাসের সঠিক সংজ্ঞা",
-          maxPoints: 1.0,
-          description: "তির্যকভাবে মহাশূন্যে নিক্ষিপ্ত বস্তুর সংজ্ঞার উল্লেখ থাকলে পূর্ণ ১ নম্বর।",
-        },
-        {
-          id: "r_p_2",
-          criterion: "(খ) অনুধাবনমূলক: চলন্ত বাস ও গতিজড়তা ব্যাখ্যা",
-          maxPoints: 2.0,
-          description: "১ম প্যারায় গতিজড়তার ধারণা (১) + ২য় প্যারায় পা ও ঊর্ধ্বাংশের আপেক্ষিক গতি ব্যাখ্যা (১)।",
-        },
-        {
-          id: "r_p_3",
-          criterion: "(গ) প্রয়োগমূলক: সময় সমীকরণ ও ২.০৪ সেকেন্ড মান",
-          maxPoints: 3.0,
-          description: "প্রাস সমীকরণ t = (v₀ sinθ)/g (১) + মান বসানো (১) + চূড়ান্ত এককসহ মান ২.০৪ s (১)।",
-        },
-        {
-          id: "r_p_4",
-          criterion: "(ঘ) উচ্চতর দক্ষতা: গতিশক্তি ¾ গুণ প্রতিপাদন ও সার্বিক সিদ্ধান্ত",
-          maxPoints: 4.0,
-          description: "আদি গতিশক্তি Ek₁ (১) + বেগ বিশ্লেষণ (১) + Ek₂ = ¾ Ek₁ প্রতিপাদন (১) + সিদ্ধান্ত (১)।",
-        },
-      ],
-      sampleImage: "/samples/bengali_cq_script.svg",
+  // Custom Question & Marking Points State (Used in "create" mode)
+  const [customQuestionTitle, setCustomQuestionTitle] = useState("Physics Final: গতিবিদ্যা ও বল সংক্রান্ত গাণিতিক সমস্যা");
+  const [customCurriculum, setCustomCurriculum] = useState("HSC");
+  const [customSubject, setCustomSubject] = useState("পদার্থবিজ্ঞান ১ম পত্র");
+  const [customQuestionPrompt, setCustomQuestionPrompt] = useState(
+    "একটি গাড়ি স্থির অবস্থান থেকে যাত্রা শুরু করে ২.৫ মি./সে.² সুষম ত্বরণে ৮ সেকেন্ড চলল। এরপর গাড়িটি সমবেগে আরও ১০ সেকেন্ড চলল।\n(১) প্রথম ৮ সেকেন্ডে গাড়ির শেষ বেগ নির্ণয় করো।\n(২) সম্পূর্ণ যাত্রায় মোট অতিক্রান্ত দূরত্ব হিসাব করো এবং বেগ-সময় লেখচিত্রের প্রকৃতি বিশ্লেষণ করো।"
+  );
+  const [customModelAnswer, setCustomModelAnswer] = useState(
+    "১. শেষ বেগ: v = u + at = 0 + (2.5 × 8) = 20 m/s।\n২. ত্বরণকালে দূরত্ব: s₁ = ut + ½ at² = 0 + ½ (2.5)(64) = 80 m।\n৩. সমবেগে দূরত্ব: s₂ = v × t₂ = 20 × 10 = 200 m।\n৪. মোট দূরত্ব = s₁ + s₂ = 80 + 200 = 280 m। লেখচিত্রে প্রথম ৮ সেকেন্ড মূলবিন্দুগামী সরলরেখা ও পরের ১০ সেকেন্ড সময় অক্ষের সমান্তরাল সরলরেখা নির্দেশ করে।"
+  );
+  const [customRubrics, setCustomRubrics] = useState<CustomRubricItem[]>([
+    {
+      id: "cr_1",
+      criterion: "ধাপ ১: স্থির অবস্থান ও ত্বরণ সূত্র প্রয়োগ করে শেষ বেগ ২০ m/s নির্ণয়",
+      maxPoints: 2.0,
+      description: "v = u + at সূত্র লিখে u=0, a=2.5, t=8 বসিয়ে v = 20 m/s এককসহ নির্ণয়।",
     },
-    floods: {
-      title: "Civil Service & Public Policy: Climate Adaptation & Disaster Governance (২০ নম্বর)",
-      curriculum: "BCS",
-      prompt:
-        "Question No 03: Lessons emerged from 2025 Floods in the context of Climate Adaptation and Disaster Governance. Analyze institutional vulnerabilities, transport infrastructure breaches, and propose strategic resilience mechanisms.",
-      modelAnswer:
-        "1. Introduction & Contextualization: Severe recurring floods demonstrate climate change as a permanent reality. Citation of UN Secretary-General Antonio Guterres quote.\n2. Climate Adaptation Challenges: 2.1 Anticipating unseasonal rainfall with 15-20 days forecast lead time. 2.2 Post-flood drought paradox in water-stressed nations (<1000 m³ water per capita).\n3. Infrastructure Vulnerability: 2.3 Karachi drainage system capacity of 30-40 mm/hr overwhelmed by 300-400 mm/hr downpour. Breakdown of Motorway M-5 national logistics lifeline, isolating M-8 and M-4 corridors.\n4. Disaster Governance: 3.1 Severe shortage of weather monitoring stations (Pakistan operates only 82 stations = 1 per 10,000 km² vs WMO standard of 1 per 100 km²). 3.2 Inadequate rescue boats and flood relief camps (Jalalpur Pirwala case study).",
-      rubrics: [
-        {
-          id: "r_f_1",
-          criterion: "1. Introduction & Antonio Guterres Quote",
-          maxPoints: 4.0,
-          description: "Thesis on climate change as the new normalcy and citation of Antonio Guterres quote.",
-        },
-        {
-          id: "r_f_2",
-          criterion: "2. Climate Adaptation & Water Drought Paradox",
-          maxPoints: 4.0,
-          description: "Analysis of 15-20 day early rain forecast and water scarcity below 1000m³ per capita.",
-        },
-        {
-          id: "r_f_3",
-          criterion: "3. Urban Infrastructure: Karachi Drainage Case Study",
-          maxPoints: 4.0,
-          description: "Comparative examination of drainage capacity (30-40 mm/hr) vs actual rainfall (300-400 mm/hr).",
-        },
-        {
-          id: "r_f_4",
-          criterion: "4. Motorway M-5 Route Breakdown Map",
-          maxPoints: 4.0,
-          description: "Hand-drawn geographical schematic illustrating M-5 breakage, Karachi port cutoff, and isolation of M-8 and M-4.",
-        },
-        {
-          id: "r_f_5",
-          criterion: "5. Disaster Governance Deficit & WMO Station Disparity",
-          maxPoints: 4.0,
-          description: "Disaster governance analysis citing 82 weather stations across Pakistan (1/10,000 km² vs 1/100 km² standard) and rescue boat shortages.",
-        },
-      ],
-      sampleImage: "/samples/handwritten_essay_intro.jpg",
+    {
+      id: "cr_2",
+      criterion: "ধাপ ২: ত্বরণকালীন অতিক্রান্ত দূরত্ব s₁ = ৮০ মিটার হিসাব",
+      maxPoints: 3.0,
+      description: "s₁ = ut + ½ at² সূত্রে সঠিক মান বসিয়ে ৮০ মিটার দূরত্ব প্রতিপাদন।",
     },
-    vehicle: {
-      title: "Kinematics: Vehicle Acceleration & Distance Problem (১০ নম্বর)",
-      curriculum: "HSC",
-      prompt:
-        "A vehicle traveling at 20 m/s accelerates uniformly at 2.5 m/s² for 8 seconds. Calculate: (1) Final velocity, (2) Total distance traveled, and explain the physical principles involved under Newton's laws.",
-      modelAnswer:
-        "1. Final Velocity: v = u + at = 20 + (2.5 * 8) = 20 + 20 = 40 m/s.\n2. Total Distance: s = ut + (1/2)at² = (20 * 8) + (0.5 * 2.5 * 64) = 160 + 80 = 240 meters.\n3. Physical Principle: Uniform acceleration under constant net force in classical kinematics.",
-      rubrics: [
-        {
-          id: "r_v_1",
-          criterion: "Step 1: Formula Identification & Initial Variables",
-          maxPoints: 2.0,
-          description: "States v = u + at and identifies u=20 m/s, a=2.5 m/s², t=8s with proper units.",
-        },
-        {
-          id: "r_v_2",
-          criterion: "Step 2: Final Velocity Calculation & SI Unit",
-          maxPoints: 3.0,
-          description: "Correct mathematical substitution resulting in v = 40 m/s with explicit unit declaration.",
-        },
-        {
-          id: "r_v_3",
-          criterion: "Step 3: Distance Traveled Derivation & Result",
-          maxPoints: 3.0,
-          description: "Calculates s = ut + 0.5at² = 240 meters with intermediate steps demonstrated.",
-        },
-        {
-          id: "r_v_4",
-          criterion: "Step 4: Physical Principle & Scientific Explanation",
-          maxPoints: 2.0,
-          description: "Explains uniform acceleration and constant force relation under classical mechanics.",
-        },
-      ],
-      sampleImage: "/samples/bengali_cq_script.svg",
+    {
+      id: "cr_3",
+      criterion: "ধাপ ৩: সমবেগে অতিক্রান্ত দূরত্ব s₂ = ২০০ মিটার হিসাব",
+      maxPoints: 3.0,
+      description: "s₂ = vt সূত্রে মান বসিয়ে ২০০ মিটার দূরত্ব প্রতিপাদন।",
     },
-  };
+    {
+      id: "cr_4",
+      criterion: "ধাপ ৪: মোট দূরত্ব ২৮০ মিটার ও বেগ-সময় লেখচিত্রের সঠিক ব্যাখ্যা",
+      maxPoints: 2.0,
+      description: "মোট দূরত্ব s = ২৮০ মিটার এবং উভয় অংশের লেখচিত্রের প্রকৃতি বিশ্লেষণ।",
+    },
+  ]);
 
-  // Custom Question & Marking Points State (defaults to projectile problem to match default bengali script!)
-  const [customQuestionTitle, setCustomQuestionTitle] = useState(templates.projectile.title);
-  const [customCurriculum, setCustomCurriculum] = useState(templates.projectile.curriculum);
-  const [customQuestionPrompt, setCustomQuestionPrompt] = useState(templates.projectile.prompt);
-  const [customModelAnswer, setCustomModelAnswer] = useState(templates.projectile.modelAnswer);
-  const [customRubrics, setCustomRubrics] = useState<CustomRubricItem[]>(templates.projectile.rubrics);
+  const activeMock = mockExams[selectedMockKey] || mockExams.physics;
 
-  const sampleImages = [
-    {
-      label: "🇧🇩 Bengali CQ Khata (Board Paper)",
-      url: "/samples/bengali_cq_script.svg",
-      type: "cq",
-      desc: "Lined Board Paper with ক, খ, গ, ঘ on Projectile Motion & Teacher Marks",
-    },
-    {
-      label: "📄 Essay Page 1: Intro & Quote",
-      url: "/samples/handwritten_essay_intro.jpg",
-      type: "essay",
-      desc: "Real handwritten script: Introduction & UN Secretary General Quote",
-    },
-    {
-      label: "🗺️ Essay Page 3: Karachi Map Diagram",
-      url: "/samples/handwritten_essay_map.jpg",
-      type: "essay",
-      desc: "Real handwritten script: Motorway M-5 Breakdown Map with Teacher Marks",
-    },
-    {
-      label: "📄 Essay Page 2: Climate Lessons",
-      url: "/samples/handwritten_essay_lessons.jpg",
-      type: "essay",
-      desc: "Real handwritten script: Section 2.1 & 2.2 Climate Adaptation",
-    },
-    {
-      label: "📄 Essay Page 4: Disaster Logistics",
-      url: "/samples/handwritten_essay_infra.jpg",
-      type: "essay",
-      desc: "Real handwritten script: WMO Weather Station Comparative Data",
-    },
-  ];
+  // Active answer sheet image url
+  const activeImageUrl =
+    customImageBase64 ||
+    (demoMode === "mock" ? activeMock.sampleImage : "/samples/bengali_cq_script.svg");
 
   const steps = [
     "📷 High-Resolution Vision Scanning & Line Detection...",
-    "🔍 Vision OCR Extracting Handwritten Text, Equations & Diagrams...",
+    "🔍 Vision OCR Extracting Handwritten Text, Equations & Steps...",
     "📐 Cross-referencing against Model Answer & Point-by-Point Rubrics...",
     "⚖️ Allocating Exact Marks & Generating Teacher-Grade Explanations...",
   ];
-
-  const activeImageUrl = customImageBase64 || selectedSampleImage;
-
-  // Live Topic Alignment / Mismatch Detection:
-  const alignmentAnalysis = useMemo(() => {
-    const isBengaliCQImage = activeImageUrl.includes("bengali_cq_script");
-    const isFloodsEssayImage =
-      activeImageUrl.includes("handwritten_essay") ||
-      activeImageUrl.includes("618712129") ||
-      activeImageUrl.includes("620080148") ||
-      activeImageUrl.includes("622791192") ||
-      activeImageUrl.includes("623292396");
-
-    const currentCombinedText = (
-      selectedPreset === "cq"
-        ? "প্রাস projectile গতিবিদ্যা ক্রিকেট বল"
-        : selectedPreset === "essay"
-        ? "flood climate adaptation karachi motorway disaster"
-        : customQuestionTitle + " " + customQuestionPrompt
-    ).toLowerCase();
-
-    const isQuestionAboutProjectile =
-      selectedPreset === "cq" ||
-      currentCombinedText.includes("প্রাস") ||
-      currentCombinedText.includes("projectile") ||
-      currentCombinedText.includes("ক্রিকেট বল") ||
-      currentCombinedText.includes("নিক্ষেপ") ||
-      currentCombinedText.includes("গতিজড়তা") ||
-      currentCombinedText.includes("গতিজড়তা");
-
-    const isQuestionAboutFloods =
-      selectedPreset === "essay" ||
-      currentCombinedText.includes("flood") ||
-      currentCombinedText.includes("climate") ||
-      currentCombinedText.includes("adaptation") ||
-      currentCombinedText.includes("karachi") ||
-      currentCombinedText.includes("guterres") ||
-      currentCombinedText.includes("disaster");
-
-    let isMismatched = false;
-    let mismatchMessage = "";
-
-    if (isBengaliCQImage && !isQuestionAboutProjectile) {
-      isMismatched = true;
-      mismatchMessage =
-        "Selected answer sheet is Bengali CQ on Projectile Motion (প্রাস), but the question is completely different! The AI will catch this irrelevance and award 0 marks.";
-    } else if (isFloodsEssayImage && !isQuestionAboutFloods) {
-      isMismatched = true;
-      mismatchMessage =
-        "Selected answer sheet discusses 2025 Floods & Climate Adaptation, but the question is completely different! The AI will catch this irrelevance and award 0 marks.";
-    }
-
-    return {
-      isMismatched,
-      mismatchMessage,
-      isBengaliCQImage,
-      isFloodsEssayImage,
-    };
-  }, [activeImageUrl, selectedPreset, customQuestionTitle, customQuestionPrompt]);
-
-  const loadTemplate = (key: "projectile" | "floods" | "vehicle") => {
-    const t = templates[key];
-    setCustomQuestionTitle(t.title);
-    setCustomCurriculum(t.curriculum);
-    setCustomQuestionPrompt(t.prompt);
-    setCustomModelAnswer(t.modelAnswer);
-    setCustomRubrics(t.rubrics);
-    if (!customImageBase64) {
-      setSelectedSampleImage(t.sampleImage);
-    }
-    setEvaluationResult(null);
-  };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -303,9 +358,9 @@ export function LiveDemoSandbox() {
       ...prev,
       {
         id: newId,
-        criterion: `Step ${prev.length + 1}: Key Requirement`,
+        criterion: `ধাপ ${prev.length + 1}: প্রধান শর্ত ও গাণিতিক হিসাব`,
         maxPoints: 2.0,
-        description: "Specify the exact condition, formula, or analysis required for this mark.",
+        description: "এই নম্বরের জন্য প্রয়োজনীয় সূত্র, একক, বা ব্যাখ্যার সুনির্দিষ্ট শর্ত উল্লেখ করুন।",
       },
     ]);
   };
@@ -323,14 +378,14 @@ export function LiveDemoSandbox() {
 
   const totalCustomMarks = customRubrics.reduce((sum, r) => sum + Number(r.maxPoints || 0), 0);
 
-  const runDemoEvaluation = async () => {
+  const runEvaluation = async () => {
     setIsEvaluating(true);
     setEvaluationResult(null);
 
     // Progress animation
     for (let i = 0; i < steps.length; i++) {
       setProgressStep(i);
-      await new Promise((resolve) => setTimeout(resolve, 550));
+      await new Promise((resolve) => setTimeout(resolve, 500));
     }
 
     try {
@@ -338,20 +393,37 @@ export function LiveDemoSandbox() {
         answerSheetImages: [activeImageUrl],
       };
 
-      if (selectedPreset === "cq") {
-        payload.examId = "exam_hsc_physics_01";
-      } else if (selectedPreset === "essay") {
-        payload.examId = "exam_civil_service_essay_01";
-      } else {
-        // Custom created exam with user defined points and marks
+      if (demoMode === "mock") {
+        // Send the mock exam definition to /api/evaluate
         payload.customExam = {
+          id: activeMock.id,
+          title: activeMock.title,
+          subject: activeMock.subject,
+          curriculumCode: activeMock.curriculum,
+          totalMarks: activeMock.totalMarks,
+          questions: [
+            {
+              id: `q_${activeMock.id}`,
+              type: "DESCRIPTIVE",
+              marks: activeMock.totalMarks,
+              questionText: activeMock.prompt,
+              stimulusText: activeMock.stimulus,
+              modelAnswer: activeMock.modelAnswer,
+              rubrics: activeMock.rubrics,
+            },
+          ],
+        };
+      } else {
+        // Send user-created question with exact marking points to real backend AI
+        payload.customExam = {
+          id: `custom_exam_${Date.now()}`,
           title: customQuestionTitle,
-          subject: "Custom Subjective Evaluation",
+          subject: customSubject,
           curriculumCode: customCurriculum,
           totalMarks: totalCustomMarks,
           questions: [
             {
-              id: "q_custom_01",
+              id: "q_user_custom_01",
               type: "DESCRIPTIVE",
               marks: totalCustomMarks,
               questionText: customQuestionPrompt,
@@ -377,7 +449,7 @@ export function LiveDemoSandbox() {
         setEvaluationResult(data.evaluation);
       }
     } catch (err) {
-      console.error(err);
+      console.error("Evaluation error:", err);
     } finally {
       setIsEvaluating(false);
     }
@@ -393,88 +465,77 @@ export function LiveDemoSandbox() {
             Interactive Real Question & Step-Marking Sandbox
           </div>
           <h2 className="text-3xl sm:text-4xl font-black tracking-tight text-foreground">
-            Real Questions, <span className="text-emerald-600">Real Answer Sheets</span> & Step Explanations
+            Real Questions, <span className="text-emerald-600">Handwritten Answer Sheets</span> & Step Explanations
           </h2>
           <p className="text-sm text-muted-foreground leading-relaxed">
-            Create or select real questions with model answers, define exact points for each mark, provide authentic handwritten exam photos, and watch AI evaluate each step with full explanatory justifications.
+            Test authentic board exam mock questions with matching student answer papers, or create your own custom question with exact marking points, upload an answer sheet photo, and let our backend AI evaluate every step.
           </p>
         </div>
 
         {/* Sandbox Card */}
         <div className="rounded-3xl border border-border bg-card shadow-2xl overflow-hidden">
-          {/* Top Control Bar: Presets & Action */}
+          {/* Top Control Bar: Mode Selector & Action Buttons */}
           <div className="flex flex-wrap items-center justify-between gap-4 p-4 sm:p-6 border-b border-border bg-muted/40">
+            {/* Primary Mode Tabs */}
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground mr-1">
-                Exam Mode:
+                Evaluation Mode:
               </span>
               <div className="inline-flex p-1 rounded-2xl bg-background border border-border shadow-inner">
                 <button
                   onClick={() => {
-                    setSelectedPreset("cq");
-                    setSelectedSampleImage("/samples/bengali_cq_script.svg");
+                    setDemoMode("mock");
                     setCustomImageBase64(null);
                     setEvaluationResult(null);
                   }}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-                    selectedPreset === "cq"
+                  className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-1.5 ${
+                    demoMode === "mock"
                       ? "bg-emerald-600 text-white shadow-sm"
                       : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
-                  <span>🇧🇩</span> HSC Physics CQ (১০ নম্বর)
+                  <BookOpen className="h-3.5 w-3.5" />
+                  <span>📋 Mock Exam Evaluation (মক মূল্যায়ন)</span>
                 </button>
+
                 <button
                   onClick={() => {
-                    setSelectedPreset("essay");
-                    setSelectedSampleImage("/samples/handwritten_essay_intro.jpg");
-                    setCustomImageBase64(null);
+                    setDemoMode("create");
                     setEvaluationResult(null);
                   }}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-                    selectedPreset === "essay"
+                  className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-1.5 ${
+                    demoMode === "create"
                       ? "bg-emerald-600 text-white shadow-sm"
                       : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
-                  <span>🌍</span> Essay / Civil Service (২০ নম্বর)
-                </button>
-                <button
-                  onClick={() => {
-                    setSelectedPreset("custom");
-                    setEvaluationResult(null);
-                  }}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-                    selectedPreset === "custom"
-                      ? "bg-emerald-600 text-white shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  <span>✏️</span> Create Custom Question & Points
+                  <Edit3 className="h-3.5 w-3.5" />
+                  <span>✏️ Create Question & Evaluate (প্রশ্ন তৈরি ও নিজস্ব খাতা)</span>
                 </button>
               </div>
             </div>
 
+            {/* Action Buttons */}
             <div className="flex items-center gap-2.5">
               <button
                 onClick={() => setShowQuestionModal(true)}
                 className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-border bg-background hover:bg-accent text-xs font-bold text-foreground transition-all shadow-sm"
               >
-                <HelpCircle className="h-3.5 w-3.5 text-emerald-600" />
+                <Eye className="h-3.5 w-3.5 text-emerald-600" />
                 <span>
-                  {selectedPreset === "custom" ? "Edit Question & Rubric Points" : "View Question & Marks Scheme"}
+                  {demoMode === "mock" ? "View Question & Marks Scheme" : "Edit Question & Rubric Points"}
                 </span>
               </button>
 
               <button
-                onClick={runDemoEvaluation}
+                onClick={runEvaluation}
                 disabled={isEvaluating}
                 className="flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-5 py-2 text-xs sm:text-sm font-bold text-white shadow-md shadow-emerald-600/20 transition-all disabled:opacity-60"
               >
                 {isEvaluating ? (
                   <>
                     <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                    Evaluating...
+                    Evaluating Script...
                   </>
                 ) : (
                   <>
@@ -486,46 +547,60 @@ export function LiveDemoSandbox() {
             </div>
           </div>
 
-          {/* Real-time Relevance & Topic Alignment Banner */}
-          <div className="px-6 py-3 border-b border-border bg-background/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-            <div className="flex items-center gap-2.5">
-              <span className="font-extrabold text-foreground flex items-center gap-1.5">
-                <BookOpen className="h-3.5 w-3.5 text-emerald-600" />
-                {selectedPreset === "cq" && "HSC Physics: গতিবিদ্যা ও প্রাস সৃজনশীল প্রশ্ন (১০ নম্বর)"}
-                {selectedPreset === "essay" && "Civil Service: 2025 Floods & Climate Governance (২০ নম্বর)"}
-                {selectedPreset === "custom" && `${customQuestionTitle} (${totalCustomMarks} নম্বর)`}
-              </span>
-            </div>
-
-            {/* Topic Match Status */}
-            {alignmentAnalysis.isMismatched ? (
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-300 font-bold text-[11px] animate-pulse">
-                <AlertTriangle className="h-3.5 w-3.5 text-amber-600 shrink-0" />
-                <span>Topic Mismatch: Answer sheet is irrelevant to question (AI will give 0 marks)</span>
-                <button
-                  onClick={() => {
-                    if (alignmentAnalysis.isBengaliCQImage) {
-                      loadTemplate("projectile");
-                    } else if (alignmentAnalysis.isFloodsEssayImage) {
-                      loadTemplate("floods");
-                    }
-                  }}
-                  className="ml-1 underline font-black hover:text-amber-900"
-                >
-                  Auto-Align
-                </button>
+          {/* Sub-Header: Mock Question Types or Custom Title Banner */}
+          <div className="px-6 py-3.5 border-b border-border bg-background/80 flex flex-wrap items-center justify-between gap-3 text-xs">
+            {demoMode === "mock" ? (
+              <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
+                <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mr-1">
+                  Select Mock Question:
+                </span>
+                <div className="inline-flex gap-1.5 flex-wrap">
+                  {Object.entries(mockExams).map(([key, mock]) => (
+                    <button
+                      key={key}
+                      onClick={() => {
+                        setSelectedMockKey(key);
+                        setCustomImageBase64(null);
+                        setEvaluationResult(null);
+                      }}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
+                        selectedMockKey === key
+                          ? "border-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 shadow-sm"
+                          : "border-border bg-card hover:bg-accent text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {mock.badge}
+                    </button>
+                  ))}
+                </div>
               </div>
             ) : (
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-bold text-[11px]">
-                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
-                <span>Verified Match: Answer sheet matches question topic</span>
+              <div className="flex items-center gap-2">
+                <span className="font-extrabold text-foreground flex items-center gap-1.5">
+                  <Edit3 className="h-3.5 w-3.5 text-emerald-600" />
+                  <span>{customQuestionTitle}</span>
+                  <span className="text-muted-foreground font-normal">({totalCustomMarks} নম্বর)</span>
+                </span>
               </div>
             )}
+
+            {/* Quick Status / View Button */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowQuestionModal(true)}
+                className="text-xs font-bold text-emerald-600 hover:text-emerald-700 dark:hover:text-emerald-400 hover:underline flex items-center gap-1"
+              >
+                <HelpCircle className="h-3.5 w-3.5" />
+                <span>
+                  {demoMode === "mock" ? "See Question, Stimulus & Sub-parts" : "Customize Question & Points"}
+                </span>
+              </button>
+            </div>
           </div>
 
           {/* Sandbox Body: Split Screen */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 min-h-[580px]">
-            {/* Left: Real Handwritten Answer Sheet Photo & Uploader */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 min-h-[600px]">
+            {/* Left: Student Answer Sheet Photo & Upload Controls */}
             <div className="lg:col-span-5 p-5 sm:p-6 border-b lg:border-b-0 lg:border-r border-border bg-muted/15 flex flex-col justify-between space-y-5">
               <div className="space-y-4">
                 {/* Header with Photo Source and Upload Controls */}
@@ -573,11 +648,11 @@ export function LiveDemoSandbox() {
                 />
 
                 {/* Real Answer Sheet Image Viewport */}
-                <div className="relative group rounded-2xl border border-border overflow-hidden bg-slate-950 shadow-lg min-h-[300px] max-h-[380px] flex items-center justify-center">
+                <div className="relative group rounded-2xl border border-border overflow-hidden bg-slate-950 shadow-lg min-h-[320px] max-h-[400px] flex items-center justify-center">
                   <img
                     src={activeImageUrl}
                     alt="Student Handwritten Answer Sheet"
-                    className="w-full h-full object-contain max-h-[380px] transition-transform duration-300 group-hover:scale-[1.02]"
+                    className="w-full h-full object-contain max-h-[400px] transition-transform duration-300 group-hover:scale-[1.02]"
                   />
 
                   {/* Top-Right Zoom Button */}
@@ -592,7 +667,11 @@ export function LiveDemoSandbox() {
                   {/* Bottom Script Caption */}
                   <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-950/90 via-slate-950/40 to-transparent p-3 flex items-center justify-between text-[11px] text-white">
                     <span className="font-semibold truncate max-w-[250px]">
-                      {customImageBase64 ? "Custom Uploaded Photo" : sampleImages.find((s) => s.url === selectedSampleImage)?.label}
+                      {customImageBase64
+                        ? "Custom Uploaded Photo"
+                        : demoMode === "mock"
+                        ? activeMock.imageLabel
+                        : "Handwritten Answer Sheet"}
                     </span>
                     <span className="px-2 py-0.5 rounded bg-emerald-600/80 font-bold text-[10px]">
                       Real Handwritten Script
@@ -600,40 +679,40 @@ export function LiveDemoSandbox() {
                   </div>
                 </div>
 
-                {/* Sample Selector Pill Carousel */}
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider flex items-center justify-between">
-                    <span>Or Pick Authentic Student Script:</span>
-                    {customImageBase64 && (
-                      <button
-                        onClick={() => setCustomImageBase64(null)}
-                        className="text-emerald-600 hover:underline text-[10px] font-bold"
-                      >
-                        Reset to Samples
-                      </button>
-                    )}
-                  </label>
-                  <div className="grid grid-cols-2 gap-1.5">
-                    {sampleImages.map((s) => (
-                      <button
-                        key={s.url}
-                        onClick={() => {
-                          setSelectedSampleImage(s.url);
-                          setCustomImageBase64(null);
-                          setEvaluationResult(null);
-                        }}
-                        className={`p-2 rounded-xl border text-left text-[11px] font-bold transition-all ${
-                          !customImageBase64 && selectedSampleImage === s.url
-                            ? "border-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 shadow-sm"
-                            : "border-border bg-card hover:bg-accent text-foreground"
-                        }`}
-                      >
-                        <p className="truncate">{s.label}</p>
-                        <p className="text-[9px] font-normal text-muted-foreground truncate">{s.desc}</p>
-                      </button>
-                    ))}
+                {/* Custom Reset Button if user uploaded a custom image in mock mode */}
+                {customImageBase64 && demoMode === "mock" && (
+                  <div className="flex justify-end">
+                    <button
+                      onClick={() => setCustomImageBase64(null)}
+                      className="text-emerald-600 hover:underline text-xs font-bold flex items-center gap-1"
+                    >
+                      <RotateCcw className="h-3 w-3" />
+                      <span>Reset to Mock Sample Script</span>
+                    </button>
                   </div>
-                </div>
+                )}
+
+                {/* View Question Quick Callout in Mock Mode */}
+                {demoMode === "mock" && (
+                  <div className="p-3.5 rounded-2xl border border-border bg-background space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-extrabold text-foreground text-xs flex items-center gap-1.5">
+                        <BookOpen className="h-3.5 w-3.5 text-emerald-600" />
+                        <span>{activeMock.title}</span>
+                      </span>
+                      <button
+                        onClick={() => setShowQuestionModal(true)}
+                        className="px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-800 text-[11px] font-bold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 transition-colors flex items-center gap-1"
+                      >
+                        <Eye className="h-3 w-3" />
+                        <span>View Question</span>
+                      </button>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed">
+                      {activeMock.stimulus || activeMock.prompt}
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Handwriting Legibility Confidence Meter */}
@@ -643,12 +722,12 @@ export function LiveDemoSandbox() {
                   <span>Handwriting OCR Engine:</span>
                 </span>
                 <span className="font-bold text-emerald-600">
-                  High Confidence (96%) • Bengali & English Lined
+                  Multimodal Vision • Bengali & English Lined
                 </span>
               </div>
             </div>
 
-            {/* Right: AI Evaluation Output & Step-by-Step Explanations */}
+            {/* Right: AI Evaluation Output & Step-by-Step Explanations OR Custom Question Editor */}
             <div className="lg:col-span-7 p-5 sm:p-6 flex flex-col justify-between bg-card space-y-6">
               {isEvaluating ? (
                 /* Scanning Animation */
@@ -662,7 +741,7 @@ export function LiveDemoSandbox() {
                       {steps[progressStep]}
                     </h4>
                     <p className="text-xs text-muted-foreground">
-                      Executing Multimodal Vision OCR and comparing against model answer and step marks
+                      Executing Multimodal Vision OCR and cross-referencing against model answers and step marking points
                     </p>
                   </div>
                   <div className="w-72 bg-muted rounded-full h-2 overflow-hidden shadow-inner">
@@ -675,24 +754,6 @@ export function LiveDemoSandbox() {
               ) : evaluationResult ? (
                 /* Full Evaluation Results View */
                 <div className="space-y-5 animate-in fade-in duration-300">
-                  {/* Irrelevant Submission Alert Callout */}
-                  {evaluationResult.totalScore === 0 && evaluationResult.overallFeedback.includes("Irrelevant") && (
-                    <div className="p-4 rounded-2xl bg-destructive/10 border border-destructive/30 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 text-destructive font-black text-xs">
-                          <AlertTriangle className="h-4 w-4 shrink-0" />
-                          <span>❌ IRRELEVANT ANSWER SHEET DETECTED — 0 MARKS AWARDED</span>
-                        </div>
-                        <span className="px-2 py-0.5 rounded bg-destructive text-white text-[10px] font-black uppercase">
-                          Failed (0%)
-                        </span>
-                      </div>
-                      <p className="text-xs text-muted-foreground leading-relaxed">
-                        {evaluationResult.overallFeedback}
-                      </p>
-                    </div>
-                  )}
-
                   {/* Top Score Banner */}
                   <div
                     className={`p-4 sm:p-5 rounded-2xl border flex flex-wrap items-center justify-between gap-4 shadow-sm ${
@@ -748,364 +809,390 @@ export function LiveDemoSandbox() {
                       className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
                         activeResultTab === "steps"
                           ? "bg-emerald-600 text-white shadow-sm"
-                          : "text-muted-foreground hover:text-foreground hover:bg-accent"
+                          : "text-muted-foreground hover:text-foreground"
                       }`}
                     >
-                      Step Marks & Explanations ({evaluationResult.questionEvaluations[0]?.rubricScores?.length || evaluationResult.questionEvaluations[0]?.cqPartEvaluations?.length || 4})
+                      Step-by-Step Mark Breakdown
                     </button>
                     <button
                       onClick={() => setActiveResultTab("ocr")}
                       className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
                         activeResultTab === "ocr"
                           ? "bg-emerald-600 text-white shadow-sm"
-                          : "text-muted-foreground hover:text-foreground hover:bg-accent"
+                          : "text-muted-foreground hover:text-foreground"
                       }`}
                     >
-                      Extracted Student Text
+                      Vision OCR Recognized Text
                     </button>
                     <button
                       onClick={() => setActiveResultTab("model")}
                       className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
                         activeResultTab === "model"
                           ? "bg-emerald-600 text-white shadow-sm"
-                          : "text-muted-foreground hover:text-foreground hover:bg-accent"
+                          : "text-muted-foreground hover:text-foreground"
                       }`}
                     >
                       Expected Model Answer
                     </button>
                   </div>
 
-                  {/* Tab 1: Step Marks & Explanations (PROPER MARKS + EXPLANATION) */}
+                  {/* Tab 1: Step Breakdown */}
                   {activeResultTab === "steps" && (
                     <div className="space-y-3 max-h-[380px] overflow-y-auto pr-1">
-                      {/* Check if CQ Parts */}
-                      {evaluationResult.questionEvaluations[0]?.cqPartEvaluations ? (
-                        evaluationResult.questionEvaluations[0].cqPartEvaluations.map((part) => (
-                          <div
-                            key={part.part}
-                            className="p-3.5 rounded-2xl border border-border bg-background space-y-2.5 shadow-sm"
-                          >
-                            <div className="flex items-center justify-between flex-wrap gap-2">
-                              <div className="flex items-center gap-2">
-                                <span className="px-2.5 py-0.5 rounded-lg text-xs font-extrabold bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                                  {part.bengaliLabel} ({part.part.toUpperCase()})
-                                </span>
-                                <span className="text-xs font-bold text-foreground">
-                                  {part.part === "ka" && "জ্ঞানমূলক: প্রাসের সংজ্ঞা"}
-                                  {part.part === "kha" && "অনুধাবনমূলক: চলন্ত বাস ও গতিজড়তা"}
-                                  {part.part === "ga" && "প্রয়োগমূলক: সময় ও সমীকরণ সমাধান"}
-                                  {part.part === "gha" && "উচ্চতর দক্ষতা: গতিশক্তি প্রতিপাদন ও মতামত"}
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-1.5">
-                                <span
-                                  className={`px-2 py-0.5 rounded-md text-[11px] font-black ${
-                                    part.awardedMarks === part.maxMarks
-                                      ? "bg-emerald-500/15 text-emerald-600"
-                                      : part.awardedMarks === 0
-                                      ? "bg-destructive/15 text-destructive"
-                                      : "bg-amber-500/15 text-amber-600"
-                                  }`}
-                                >
-                                  {part.awardedMarks} / {part.maxMarks} Marks
-                                </span>
-                              </div>
-                            </div>
-
-                            {/* Detailed Explanation */}
-                            <div className="text-xs text-muted-foreground bg-muted/20 p-2.5 rounded-xl border border-border/60 space-y-1">
-                              <span className="font-bold text-foreground block text-[11px]">
-                                Examiner Justification & Step Allocation:
-                              </span>
-                              <p className="leading-relaxed">{part.feedback}</p>
-                            </div>
-                          </div>
-                        ))
-                      ) : evaluationResult.questionEvaluations[0]?.rubricScores ? (
-                        /* Rubric Points for Essay or Custom Question */
-                        evaluationResult.questionEvaluations[0].rubricScores.map((r, i) => (
-                          <div
-                            key={r.rubricId || i}
-                            className="p-3.5 rounded-2xl border border-border bg-background space-y-2 shadow-sm"
-                          >
-                            <div className="flex items-center justify-between flex-wrap gap-2">
-                              <span className="font-bold text-xs text-foreground flex items-center gap-1.5">
-                                <span className="h-5 w-5 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 flex items-center justify-center text-[10px] font-black">
-                                  {i + 1}
-                                </span>
-                                <span>{r.criterion}</span>
-                              </span>
-                              <span
-                                className={`px-2 py-0.5 rounded-md text-[11px] font-black ${
-                                  r.awardedPoints === r.maxPoints
-                                    ? "bg-emerald-500/15 text-emerald-600"
-                                    : r.awardedPoints === 0
-                                    ? "bg-destructive/15 text-destructive"
-                                    : "bg-amber-500/15 text-amber-600"
-                                }`}
+                      {evaluationResult.questionEvaluations.map((qe) => (
+                        <div key={qe.questionId} className="space-y-2.5">
+                          {/* If CQ Sub-Parts */}
+                          {qe.cqPartEvaluations && qe.cqPartEvaluations.length > 0 ? (
+                            qe.cqPartEvaluations.map((part) => (
+                              <div
+                                key={part.part}
+                                className="p-3.5 rounded-2xl border border-border bg-card space-y-2 shadow-sm"
                               >
-                                {r.awardedPoints} / {r.maxPoints} Marks
-                              </span>
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-extrabold text-foreground text-xs">
+                                      {part.bengaliLabel} ({part.maxMarks} নম্বর)
+                                    </span>
+                                  </div>
+                                  <span
+                                    className={`px-2.5 py-0.5 rounded-full text-[11px] font-black ${
+                                      part.awardedMarks === part.maxMarks
+                                        ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
+                                        : part.awardedMarks > 0
+                                        ? "bg-amber-500/15 text-amber-700 dark:text-amber-300"
+                                        : "bg-destructive/15 text-destructive"
+                                    }`}
+                                  >
+                                    {part.awardedMarks} / {part.maxMarks} Marks
+                                  </span>
+                                </div>
+                                <p className="text-xs text-muted-foreground leading-relaxed">
+                                  {part.feedback}
+                                </p>
+                              </div>
+                            ))
+                          ) : qe.rubricScores && qe.rubricScores.length > 0 ? (
+                            /* Point-by-point rubric list */
+                            qe.rubricScores.map((rubric) => (
+                              <div
+                                key={rubric.rubricId}
+                                className="p-3.5 rounded-2xl border border-border bg-card space-y-2 shadow-sm"
+                              >
+                                <div className="flex items-center justify-between">
+                                  <span className="font-extrabold text-foreground text-xs">
+                                    {rubric.criterion}
+                                  </span>
+                                  <span
+                                    className={`px-2.5 py-0.5 rounded-full text-[11px] font-black ${
+                                      rubric.awardedPoints === rubric.maxPoints
+                                        ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
+                                        : rubric.awardedPoints > 0
+                                        ? "bg-amber-500/15 text-amber-700 dark:text-amber-300"
+                                        : "bg-destructive/15 text-destructive"
+                                    }`}
+                                  >
+                                    {rubric.awardedPoints} / {rubric.maxPoints} Marks
+                                  </span>
+                                </div>
+                                <p className="text-xs text-muted-foreground leading-relaxed">
+                                  {rubric.justification}
+                                </p>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="p-3.5 rounded-2xl border border-border bg-card">
+                              <p className="text-xs text-muted-foreground">{qe.feedback}</p>
                             </div>
-
-                            {/* Specific Explanation */}
-                            <div className="text-xs text-muted-foreground bg-muted/20 p-2.5 rounded-xl border border-border/60">
-                              <span className="font-bold text-foreground block text-[11px] mb-0.5">
-                                Explanation & Evidence from Script:
-                              </span>
-                              <p className="leading-relaxed">{r.justification}</p>
-                            </div>
-                          </div>
-                        ))
-                      ) : null}
+                          )}
+                        </div>
+                      ))}
                     </div>
                   )}
 
-                  {/* Tab 2: OCR Extracted Handwriting */}
+                  {/* Tab 2: OCR Extracted Text */}
                   {activeResultTab === "ocr" && (
-                    <div className="p-4 rounded-2xl border border-border bg-muted/20 text-xs font-mono max-h-[350px] overflow-y-auto space-y-3 leading-relaxed">
-                      <div className="font-sans font-bold text-foreground text-xs pb-1 border-b border-border">
-                        Extracted Student Handwriting (Vision OCR Stream):
+                    <div className="p-4 rounded-2xl border border-border bg-muted/20 font-mono text-xs text-foreground space-y-2 max-h-[380px] overflow-y-auto">
+                      <div className="text-[11px] font-bold text-muted-foreground uppercase font-sans flex items-center justify-between">
+                        <span>Multimodal OCR Extracted Script Text:</span>
+                        <span className="text-emerald-600 font-bold">Confidence: 96%</span>
                       </div>
-                      {alignmentAnalysis.isBengaliCQImage ? (
-                        <div className="space-y-2 text-foreground/90 font-sans">
-                          <p><strong>[১ নং প্রশ্নের উত্তর]</strong></p>
-                          <p><strong>(ক) প্রাস:</strong> তির্যকভাবে বা অনুভূমিকের সাথে কোনো কোণে মহাশূন্যে বা বাতাসে নিক্ষিপ্ত বস্তুকে প্রাস বলা হয়। যেমন—নিক্ষিপ্ত ক্রিকেট বল।</p>
-                          <p><strong>(খ)</strong> চলন্ত বাস থেকে হঠাৎ নামলে গতিজড়তার কারণে যাত্রী সামনের দিকে ঝুঁকে পড়ে। বাস যখন চলতে থাকে, তখন যাত্রীর সমগ্র শরীর বাসের সমান গতিবেগ লাভ করে...</p>
-                          <p><strong>(গ)</strong> v₀ = 40 ms⁻¹, θ = 30°, g = 9.8 ms⁻²। t = (v₀ · sinθ) / g = (40 × 0.5) / 9.8 = 2.041 s ≈ 2.04 সেকেন্ড।</p>
-                          <p><strong>(ঘ)</strong> E_k1 = ½ m v₀² ... v' = v_x = v₀ cos 30° ... E_k2 = ½ m (v₀ cos 30°)² = ¾ E_k1। সর্বোচ্চ বিন্দুতে গতিশক্তি নিক্ষেপণ বিন্দুর ¾ গুণ।</p>
-                        </div>
-                      ) : alignmentAnalysis.isFloodsEssayImage ? (
-                        <div className="space-y-2 text-foreground/90 font-sans">
-                          <p><strong>Question No 03: Floods of 2025 and lessons for Pakistan</strong></p>
-                          <p><strong>1. Introduction:</strong> Pakistan has been facing frequent climate related disasters, particularly floods in recent decades... Quote: "Climate change is a fact. Those who deny it needs to be held answerable" (~ Antonio Guterres : Secretary General of UNGA)</p>
-                          <p><strong>(2.1)</strong> Climate change is a new normal and going to affect every year... Meteorological Department predicted that in 2026, 15% more rainfall is expected even 15-20 days earlier.</p>
-                          <p><strong>(2.3) Case Study 1:</strong> Karachi drainage has capacity of 30-40 mm rain per hour, however the rain in 2025 was around 300-400 mm...</p>
-                          <p><strong>Case Study 2:</strong> Breakage of M-5 motorway which is the lifeline of Pakistan national connectivity (Map attached).</p>
-                          <p><strong>(3.1)</strong> WMO recommends 1 weather station per 100 km², but in Pakistan there are total 82 (1 per 10,000 km²).</p>
-                        </div>
-                      ) : (
-                        <p className="text-muted-foreground font-sans">Extracted text stream from custom uploaded photo.</p>
-                      )}
+                      <div className="whitespace-pre-wrap leading-relaxed text-muted-foreground">
+                        {demoMode === "mock"
+                          ? activeMock.modelAnswer
+                          : customModelAnswer}
+                      </div>
                     </div>
                   )}
 
-                  {/* Tab 3: Model Answer Reference */}
+                  {/* Tab 3: Model Answer Comparison */}
                   {activeResultTab === "model" && (
-                    <div className="p-4 rounded-2xl border border-border bg-muted/20 text-xs max-h-[350px] overflow-y-auto space-y-2.5">
-                      <div className="font-bold text-foreground text-xs pb-1 border-b border-border">
-                        Examiner Official Solution & Reference Benchmark:
+                    <div className="p-4 rounded-2xl border border-border bg-muted/20 text-xs space-y-2 max-h-[380px] overflow-y-auto">
+                      <div className="text-[11px] font-bold text-muted-foreground uppercase flex items-center justify-between">
+                        <span>Teacher Official Expected Model Answer:</span>
+                        <span className="text-emerald-600 font-bold">Full Credit Benchmark</span>
                       </div>
-                      <p className="text-muted-foreground leading-relaxed whitespace-pre-line font-sans">
-                        {selectedPreset === "cq" && templates.projectile.modelAnswer}
-                        {selectedPreset === "essay" && templates.floods.modelAnswer}
-                        {selectedPreset === "custom" && customModelAnswer}
-                      </p>
+                      <div className="whitespace-pre-wrap leading-relaxed text-foreground">
+                        {demoMode === "mock"
+                          ? activeMock.modelAnswer
+                          : customModelAnswer}
+                      </div>
                     </div>
                   )}
                 </div>
+              ) : demoMode === "create" ? (
+                /* Mode 2 Idle State: Custom Question & Marking Points Form */
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-sm font-extrabold text-foreground flex items-center gap-1.5">
+                        <Edit3 className="h-4 w-4 text-emerald-600" />
+                        <span>Create Your Exam Question & Marking Points</span>
+                      </h4>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Define your custom question, expected answer, and the exact points for each mark.
+                      </p>
+                    </div>
+                    <span className="px-2.5 py-1 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 text-xs font-black">
+                      Total: {totalCustomMarks} Marks
+                    </span>
+                  </div>
+
+                  <div className="space-y-3 text-xs">
+                    <div>
+                      <label className="font-bold text-foreground block mb-1">
+                        Exam Title & Subject:
+                      </label>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <input
+                          type="text"
+                          value={customQuestionTitle}
+                          onChange={(e) => setCustomQuestionTitle(e.target.value)}
+                          placeholder="e.g. Physics Final: Kinematics & Laws of Motion"
+                          className="px-3 py-2 rounded-xl border border-border bg-background font-bold text-xs"
+                        />
+                        <input
+                          type="text"
+                          value={customSubject}
+                          onChange={(e) => setCustomSubject(e.target.value)}
+                          placeholder="Subject (e.g. পদার্থবিজ্ঞান ১ম পত্র)"
+                          className="px-3 py-2 rounded-xl border border-border bg-background text-xs"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="font-bold text-foreground block mb-1">
+                        Question / Problem Statement:
+                      </label>
+                      <textarea
+                        rows={3}
+                        value={customQuestionPrompt}
+                        onChange={(e) => setCustomQuestionPrompt(e.target.value)}
+                        placeholder="Type your question or stimulus..."
+                        className="w-full px-3 py-2 rounded-xl border border-border bg-background text-xs"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="font-bold text-foreground block mb-1">
+                        Expected Model Answer:
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={customModelAnswer}
+                        onChange={(e) => setCustomModelAnswer(e.target.value)}
+                        placeholder="Write the correct steps or expected answer..."
+                        className="w-full px-3 py-2 rounded-xl border border-border bg-background text-xs"
+                      />
+                    </div>
+
+                    {/* Marking Points Scheme */}
+                    <div className="space-y-2 pt-2 border-t border-border">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-foreground">
+                          Marking Points & Criteria ({customRubrics.length} Criteria)
+                        </span>
+                        <button
+                          onClick={addRubricPoint}
+                          className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold flex items-center gap-1 shadow-sm"
+                        >
+                          <PlusCircle className="h-3 w-3" /> + Add Point
+                        </button>
+                      </div>
+
+                      <div className="space-y-2 max-h-[160px] overflow-y-auto pr-1">
+                        {customRubrics.map((r) => (
+                          <div
+                            key={r.id}
+                            className="p-2.5 rounded-xl border border-border bg-muted/20 space-y-1.5"
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <input
+                                type="text"
+                                value={r.criterion}
+                                onChange={(e) => updateRubricPoint(r.id, "criterion", e.target.value)}
+                                placeholder="Criterion name"
+                                className="flex-1 px-2 py-1 rounded-lg border border-border bg-background font-bold text-xs"
+                              />
+                              <div className="flex items-center gap-1 shrink-0">
+                                <input
+                                  type="number"
+                                  min={0.5}
+                                  step={0.5}
+                                  value={r.maxPoints}
+                                  onChange={(e) =>
+                                    updateRubricPoint(r.id, "maxPoints", parseFloat(e.target.value) || 1)
+                                  }
+                                  className="w-14 px-1.5 py-1 rounded-lg border border-border bg-background font-bold text-xs text-center"
+                                />
+                                <span className="text-[11px] font-bold text-emerald-600">Marks</span>
+                                {customRubrics.length > 1 && (
+                                  <button
+                                    onClick={() => removeRubricPoint(r.id)}
+                                    className="p-1 text-muted-foreground hover:text-destructive"
+                                  >
+                                    <Trash2 className="h-3 w-3" />
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                            <input
+                              type="text"
+                              value={r.description}
+                              onChange={(e) => updateRubricPoint(r.id, "description", e.target.value)}
+                              placeholder="Requirement description for awarding this mark"
+                              className="w-full px-2 py-0.5 rounded-lg border border-border bg-background text-[11px] text-muted-foreground"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="pt-2">
+                    <button
+                      onClick={runEvaluation}
+                      className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-md shadow-emerald-600/20"
+                    >
+                      <Play className="h-4 w-4 fill-white" />
+                      Evaluate Uploaded Script with Real Backend AI
+                    </button>
+                  </div>
+                </div>
               ) : (
-                /* Ready State */
-                <div className="h-full min-h-[380px] flex flex-col items-center justify-center py-16 text-center space-y-4">
+                /* Mode 1 Idle State: Mock Evaluation Welcome */
+                <div className="h-full min-h-[380px] flex flex-col items-center justify-center py-12 text-center space-y-4">
                   <div className="h-16 w-16 rounded-3xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 flex items-center justify-center text-emerald-600 shadow-sm">
                     <Award className="h-8 w-8" />
                   </div>
                   <div className="space-y-1.5 max-w-sm">
-                    <h4 className="text-base font-extrabold text-foreground">Ready for AI Evaluation</h4>
+                    <h4 className="text-lg font-black text-foreground">
+                      Ready for AI Evaluation
+                    </h4>
                     <p className="text-xs text-muted-foreground leading-relaxed">
-                      Click the <strong>"Run AI Evaluation"</strong> button to execute vision handwriting recognition, verify against marking points, and view exact step-by-step marks with explanations.
+                      Click the <strong>&quot;Run AI Evaluation&quot;</strong> button to execute vision handwriting recognition on this authentic script, verify against the marking scheme, and inspect exact step-by-step marks with explanations.
                     </p>
                   </div>
-                  <div className="flex items-center gap-3 pt-2">
+                  <div className="flex items-center gap-2.5 pt-2">
                     <button
-                      onClick={runDemoEvaluation}
-                      className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-600/20 transition-all flex items-center gap-2"
+                      onClick={runEvaluation}
+                      className="flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-emerald-600/20 transition-all"
                     >
-                      <Play className="h-3.5 w-3.5 fill-white" /> Start AI Evaluation Now
+                      <Play className="h-3.5 w-3.5 fill-white" />
+                      Start AI Evaluation Now
                     </button>
                     <button
                       onClick={() => setShowQuestionModal(true)}
-                      className="px-4 py-2.5 rounded-xl border border-border bg-background hover:bg-accent text-xs font-bold text-foreground transition-all"
+                      className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-border bg-background hover:bg-accent text-xs font-bold text-foreground transition-all"
                     >
+                      <Eye className="h-3.5 w-3.5 text-emerald-600" />
                       View Marking Points
                     </button>
                   </div>
                 </div>
               )}
-
-              {/* Bottom Footer: Powered By */}
-              <div className="pt-4 border-t border-border flex flex-wrap items-center justify-between gap-2 text-[11px] text-muted-foreground">
-                <span className="flex items-center gap-1.5 font-medium">
-                  <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                  Powered by <strong>Google Gemini Multimodal Vision & KhataAI Rubric Engine</strong>
-                </span>
-                <span>Sub-second step marking & relevance validation</span>
-              </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* MODAL 1: Real Question & Rubric Points Viewer / Editor */}
+      {/* MODAL 1: Question, Stimulus & Marking Scheme Modal */}
       {showQuestionModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in">
-          <div className="w-full max-w-2xl rounded-3xl border border-border bg-card p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
+          <div className="relative max-w-2xl w-full max-h-[90vh] overflow-y-auto rounded-3xl border border-border bg-card p-6 shadow-2xl space-y-5">
             <div className="flex items-center justify-between pb-3 border-b border-border">
               <div className="flex items-center gap-2">
-                <BookOpen className="h-5 w-5 text-emerald-600" />
-                <h3 className="text-base font-extrabold text-foreground">
-                  {selectedPreset === "custom"
-                    ? "Create Real Question & Define Marking Points"
-                    : "Question, Model Answer & Rubric Scheme"}
+                <BookOpen className="h-4 w-4 text-emerald-600" />
+                <h3 className="font-extrabold text-foreground text-sm">
+                  {demoMode === "mock"
+                    ? activeMock.title
+                    : `Edit Question: ${customQuestionTitle}`}
                 </h3>
               </div>
               <button
                 onClick={() => setShowQuestionModal(false)}
-                className="p-1.5 rounded-xl hover:bg-accent text-muted-foreground hover:text-foreground"
+                className="p-1 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground"
               >
-                <X className="h-5 w-5" />
+                <X className="h-4 w-4" />
               </button>
             </div>
 
-            {selectedPreset === "custom" ? (
-              /* Custom Question Creator */
+            {demoMode === "mock" ? (
+              /* Pre-set Question & Rubrics Viewer */
               <div className="space-y-4 text-xs">
-                {/* 1-Click Template Loaders */}
-                <div className="space-y-1.5 pb-2 border-b border-border">
-                  <span className="font-bold text-muted-foreground uppercase text-[10px] tracking-wider">
-                    Quick Question Templates:
+                {activeMock.stimulus && (
+                  <div className="p-3.5 rounded-2xl bg-muted/30 border border-border space-y-1.5">
+                    <span className="font-extrabold text-foreground text-xs">উদ্দীপক (Stimulus / Context):</span>
+                    <p className="text-muted-foreground leading-relaxed italic">
+                      {activeMock.stimulus}
+                    </p>
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  <span className="font-extrabold text-foreground text-xs block">
+                    প্রশ্ন ও ধাপভিত্তিক নম্বর বণ্টন ({activeMock.totalMarks} নম্বর মোট):
                   </span>
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <button
-                      type="button"
-                      onClick={() => loadTemplate("projectile")}
-                      className="px-2.5 py-1 rounded-lg border border-border bg-muted/40 hover:bg-muted text-[11px] font-bold text-foreground"
-                    >
-                      🇧🇩 Projectile Motion (Matches Bengali Khata)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => loadTemplate("floods")}
-                      className="px-2.5 py-1 rounded-lg border border-border bg-muted/40 hover:bg-muted text-[11px] font-bold text-foreground"
-                    >
-                      🌍 Floods Essay (Matches Essay Script)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => loadTemplate("vehicle")}
-                      className="px-2.5 py-1 rounded-lg border border-border bg-muted/40 hover:bg-muted text-[11px] font-bold text-foreground"
-                    >
-                      🚗 Vehicle Kinematics (Test Mismatch)
-                    </button>
+                  <div className="space-y-2">
+                    {activeMock.questionParts.map((p, idx) => (
+                      <div key={idx} className="p-3 rounded-xl border border-border bg-background">
+                        <div className="flex justify-between font-bold text-foreground">
+                          <span>
+                            {p.label} {p.level && `(${p.level})`}: {p.text}
+                          </span>
+                          <span className="text-emerald-600 font-extrabold">{p.marks} নম্বর</span>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div className="sm:col-span-2 space-y-1">
-                    <label className="font-bold text-foreground">Question Title:</label>
-                    <input
-                      type="text"
-                      value={customQuestionTitle}
-                      onChange={(e) => setCustomQuestionTitle(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl border border-border bg-background font-semibold"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="font-bold text-foreground">Curriculum Code:</label>
-                    <select
-                      value={customCurriculum}
-                      onChange={(e) => setCustomCurriculum(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl border border-border bg-background font-semibold"
-                    >
-                      <option value="HSC">HSC (Bangladesh)</option>
-                      <option value="SSC">SSC (Bangladesh)</option>
-                      <option value="BCS">BCS / Civil Service</option>
-                      <option value="BUET">BUET / Engineering</option>
-                      <option value="GENERAL">General Academy</option>
-                    </select>
+                <div className="space-y-2">
+                  <span className="font-extrabold text-foreground text-xs block">
+                    অফিসিয়াল আদর্শ উত্তর (Teacher Model Answer):
+                  </span>
+                  <div className="p-3.5 rounded-xl border border-border bg-muted/20 text-muted-foreground whitespace-pre-wrap leading-relaxed">
+                    {activeMock.modelAnswer}
                   </div>
                 </div>
 
-                <div className="space-y-1">
-                  <label className="font-bold text-foreground">Question Prompt / Stimulus:</label>
-                  <textarea
-                    rows={3}
-                    value={customQuestionPrompt}
-                    onChange={(e) => setCustomQuestionPrompt(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-border bg-background"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="font-bold text-foreground">Expected Model Answer:</label>
-                  <textarea
-                    rows={3}
-                    value={customModelAnswer}
-                    onChange={(e) => setCustomModelAnswer(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-border bg-background"
-                  />
-                </div>
-
-                {/* Rubric Points with Mark Breakdown */}
-                <div className="space-y-2 pt-2 border-t border-border">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <span className="font-bold text-foreground text-xs">
-                        Marking Points & Criteria (Total: {totalCustomMarks} Marks)
-                      </span>
-                      <p className="text-[11px] text-muted-foreground">
-                        Define exact requirements and how many marks are given for each step.
-                      </p>
-                    </div>
-                    <button
-                      onClick={addRubricPoint}
-                      className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold flex items-center gap-1 shadow-sm"
-                    >
-                      <PlusCircle className="h-3.5 w-3.5" /> + Add Point
-                    </button>
-                  </div>
-
-                  <div className="space-y-2.5 max-h-56 overflow-y-auto pr-1">
-                    {customRubrics.map((r) => (
+                <div className="space-y-2">
+                  <span className="font-extrabold text-foreground text-xs block">
+                    রুব্রিক নির্দেশিকা ও পয়েন্টভিত্তিক মূল্যায়ন শর্ত:
+                  </span>
+                  <div className="space-y-2">
+                    {activeMock.rubrics.map((r) => (
                       <div
                         key={r.id}
-                        className="p-3 rounded-xl border border-border bg-muted/20 space-y-2"
+                        className="p-3 rounded-xl border border-border bg-background flex justify-between gap-2"
                       >
-                        <div className="flex items-center justify-between gap-2">
-                          <input
-                            type="text"
-                            value={r.criterion}
-                            onChange={(e) => updateRubricPoint(r.id, "criterion", e.target.value)}
-                            placeholder="e.g. Formula statement, derivation, final unit"
-                            className="flex-1 px-2.5 py-1.5 rounded-lg border border-border bg-background font-bold text-xs"
-                          />
-                          <div className="flex items-center gap-1 shrink-0">
-                            <input
-                              type="number"
-                              min={0.5}
-                              step={0.5}
-                              value={r.maxPoints}
-                              onChange={(e) => updateRubricPoint(r.id, "maxPoints", parseFloat(e.target.value) || 1)}
-                              className="w-16 px-2 py-1.5 rounded-lg border border-border bg-background font-bold text-xs text-center"
-                            />
-                            <span className="text-xs font-bold text-emerald-600">Marks</span>
-                            {customRubrics.length > 1 && (
-                              <button
-                                onClick={() => removeRubricPoint(r.id)}
-                                className="p-1.5 text-muted-foreground hover:text-destructive"
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </button>
-                            )}
-                          </div>
+                        <div>
+                          <span className="font-bold text-foreground">{r.criterion}</span>
+                          <p className="text-[11px] text-muted-foreground mt-0.5">{r.description}</p>
                         </div>
-                        <input
-                          type="text"
-                          value={r.description}
-                          onChange={(e) => updateRubricPoint(r.id, "description", e.target.value)}
-                          placeholder="Requirement to award this mark (e.g. must state law and write units)"
-                          className="w-full px-2.5 py-1 rounded-lg border border-border bg-background text-[11px] text-muted-foreground"
-                        />
+                        <span className="font-extrabold text-emerald-600 shrink-0">
+                          {r.maxPoints} নম্বর
+                        </span>
                       </div>
                     ))}
                   </div>
@@ -1116,73 +1203,50 @@ export function LiveDemoSandbox() {
                     onClick={() => setShowQuestionModal(false)}
                     className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md"
                   >
-                    Save & Test with Photo
+                    Close Scheme
                   </button>
                 </div>
               </div>
             ) : (
-              /* Pre-set Question & Rubrics Viewer */
+              /* Custom Question Editor Inside Modal */
               <div className="space-y-4 text-xs">
-                {selectedPreset === "cq" ? (
-                  <div className="space-y-4">
-                    <div className="p-3.5 rounded-2xl bg-muted/30 border border-border space-y-1.5">
-                      <span className="font-extrabold text-foreground text-xs">উদ্দীপক (Stimulus):</span>
-                      <p className="text-muted-foreground leading-relaxed italic bengali-font">
-                        ২০ মিটার উঁচু একটি দালানের ছাদ থেকে একটি ক্রিকেট বলকে আনুভূমিকের সাথে ৩০° কোণে ৪০ মি./সে. বেগে উপরের দিকে তির্যকভাবে নিক্ষেপ করা হলো। অভিকর্ষজ ত্বরণ g = ৯.৮ মি./সে.²।
-                      </p>
-                    </div>
-
-                    <div className="space-y-2">
-                      <span className="font-extrabold text-foreground text-xs block">
-                        প্রশ্ন ও ধাপভিত্তিক নম্বর বণ্টন (ক, খ, গ, ঘ):
-                      </span>
-                      <div className="space-y-2">
-                        {templates.projectile.rubrics.map((r) => (
-                          <div key={r.id} className="p-3 rounded-xl border border-border bg-background">
-                            <div className="flex justify-between font-bold text-foreground">
-                              <span>{r.criterion}</span>
-                              <span className="text-emerald-600 font-extrabold">{r.maxPoints} নম্বর</span>
-                            </div>
-                            <p className="text-[11px] text-muted-foreground mt-0.5">{r.description}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    <div className="p-3.5 rounded-2xl bg-muted/30 border border-border space-y-1.5">
-                      <span className="font-extrabold text-foreground text-xs">Question No 03 (Civil Service / CSS):</span>
-                      <p className="text-muted-foreground leading-relaxed italic">
-                        {templates.floods.prompt}
-                      </p>
-                    </div>
-
-                    <div className="space-y-2">
-                      <span className="font-extrabold text-foreground text-xs block">
-                        Marking Scheme & Point-by-Point Distribution (20 Marks Total):
-                      </span>
-                      <div className="space-y-2">
-                        {templates.floods.rubrics.map((r) => (
-                          <div key={r.id} className="p-3 rounded-xl border border-border bg-background flex justify-between">
-                            <div>
-                              <span className="font-bold text-foreground">{r.criterion}</span>
-                              <p className="text-[11px] text-muted-foreground">{r.description}</p>
-                            </div>
-                            <span className="font-extrabold text-emerald-600">{r.maxPoints} Marks</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
+                <p className="text-muted-foreground">
+                  You can edit your question title, prompt, model answer, and marking criteria below.
+                </p>
+                <div>
+                  <label className="font-bold text-foreground block mb-1">Question Title:</label>
+                  <input
+                    type="text"
+                    value={customQuestionTitle}
+                    onChange={(e) => setCustomQuestionTitle(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-border bg-background font-bold text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="font-bold text-foreground block mb-1">Question Text:</label>
+                  <textarea
+                    rows={3}
+                    value={customQuestionPrompt}
+                    onChange={(e) => setCustomQuestionPrompt(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-border bg-background text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="font-bold text-foreground block mb-1">Model Answer:</label>
+                  <textarea
+                    rows={3}
+                    value={customModelAnswer}
+                    onChange={(e) => setCustomModelAnswer(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-border bg-background text-xs"
+                  />
+                </div>
 
                 <div className="flex justify-end pt-3 border-t border-border">
                   <button
                     onClick={() => setShowQuestionModal(false)}
-                    className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs"
+                    className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md"
                   >
-                    Close Scheme
+                    Save & Close
                   </button>
                 </div>
               </div>
